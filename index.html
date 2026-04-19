@@ -1,0 +1,2085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="SE Asia 2026">
+
+  <!-- Android / Chrome PWA -->
+  <meta name="theme-color" content="#bf5a1a">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <title>SE Asia 2026 — Mauricio &amp; Carla</title>
+
+  <!-- Fonts (loads when online; already cached after first visit) -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Apple touch icon: simple SVG rasterised to canvas on first load -->
+  <link rel="apple-touch-icon" id="ati">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; background: #fdf6e3; height: 100%; overscroll-behavior: none; }
+    body { -webkit-user-select: none; user-select: none; }
+    input, textarea { -webkit-user-select: auto; user-select: auto; }
+    #root {
+      /* Respect iPhone notch/home bar */
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      min-height: 100dvh;
+    }
+    /* Hide scrollbars on iOS */
+    * { scrollbar-width: none; }
+    *::-webkit-scrollbar { display: none; }
+    /* Splash loading screen */
+    #splash {
+      position: fixed; inset: 0; background: #fdf6e3;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', Georgia, serif;
+      color: #bf5a1a; z-index: 9999; transition: opacity .4s;
+    }
+    #splash.hidden { opacity: 0; pointer-events: none; }
+    #splash-title { font-size: 26px; font-weight: 700; margin-top: 16px; }
+    #splash-sub { font-size: 13px; color: #9c8e7e; margin-top: 6px; font-family: 'Source Sans 3', sans-serif; }
+    .splash-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: #bf5a1a; margin: 0 3px; animation: blink 1.2s infinite; }
+    .splash-dot:nth-child(2) { animation-delay: .2s; }
+    .splash-dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+  </style>
+</head>
+<body>
+
+<!-- Splash screen shown while Babel compiles -->
+<div id="splash">
+  <svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="56" height="56" rx="14" fill="#bf5a1a"/>
+    <text x="28" y="38" text-anchor="middle" font-size="28" font-family="serif">✈️</text>
+  </svg>
+  <div id="splash-title">SE Asia 2026</div>
+  <div id="splash-sub">Mauricio &amp; Carla</div>
+  <div style="margin-top:20px">
+    <span class="splash-dot"></span><span class="splash-dot"></span><span class="splash-dot"></span>
+  </div>
+</div>
+
+<div id="root"></div>
+
+<!-- React 18 + ReactDOM (CDN — cached after first load) -->
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<!-- Babel standalone for in-browser JSX compilation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<!-- ═══════════════════════════════════════════════════
+     APP  (all JSX — compiled in-browser by Babel)
+══════════════════════════════════════════════════════ -->
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+// ── PALETTE ─────────────────────────────────────────────────────────────────
+const P = {
+  bg: "#fdf6e3",
+  card: "#fffef9",
+  accent: "#bf5a1a",
+  accentLight: "#fef0e4",
+  text: "#2c2417",
+  textMid: "#6b5e4f",
+  textLight: "#9c8e7e",
+  border: "#e8dcc8",
+  green: "#2d7a4f",
+  greenBg: "#edf7f0",
+  blue: "#2563a0",
+  blueBg: "#eef5fc",
+  amber: "#a06b0a",
+  amberBg: "#fef9ec",
+  red: "#c43030",
+  redBg: "#fef0f0",
+  teal: "#1a7a7a",
+  tealBg: "#e8f5f5",
+};
+
+const TYPE_CFG = {
+  travel:    { color: P.blue,   bg: P.blueBg,      label: "Travel" },
+  explore:   { color: P.green,  bg: P.greenBg,     label: "Explore" },
+  adventure: { color: P.accent, bg: P.accentLight,  label: "Adventure" },
+  beach:     { color: P.teal,   bg: P.tealBg,      label: "Beach" },
+};
+
+// ── DATA: DESTINATIONS ──────────────────────────────────────────────────────
+const DESTINATIONS = [
+  { id: "hanoi",      name: "Hanoi",            country: "Vietnam",      flag: "🇻🇳", dates: "Apr 20–23 & Apr 27–29" },
+  { id: "hagiang",    name: "Ha Giang Loop",     country: "Vietnam",      flag: "🇻🇳", dates: "Apr 23–27" },
+  { id: "ninhbinh",   name: "Ninh Bình",         country: "Vietnam",      flag: "🇻🇳", dates: "Apr 29 – May 1" },
+  { id: "hue",        name: "Huế",               country: "Vietnam",      flag: "🇻🇳", dates: "May 2–5" },
+  { id: "hoian",      name: "Hội An",            country: "Vietnam",      flag: "🇻🇳", dates: "May 5–8" },
+  { id: "danang",     name: "Đà Nẵng",           country: "Vietnam",      flag: "🇻🇳", dates: "May 8–9" },
+  { id: "siemreap",   name: "Siem Reap",         country: "Cambodia",     flag: "🇰🇭", dates: "May 9–11" },
+  { id: "kohrong",    name: "Koh Rong Samloem",  country: "Cambodia",     flag: "🇰🇭", dates: "May 12–15" },
+  { id: "phnompenh",  name: "Phnom Penh",        country: "Cambodia",     flag: "🇰🇭", dates: "May 15–16" },
+  { id: "seoul",      name: "Seoul",             country: "South Korea",  flag: "🇰🇷", dates: "May 17–21" },
+];
+
+// ── DATA: ITINERARY ──────────────────────────────────────────────────────────
+const ITINERARY_GROUPS = [
+  {
+    loc: "Outbound Flight",
+    sub: "JFK → ICN → HAN",
+    type: "travel",
+    flag: "✈️",
+    dateRange: "Sun, Apr 19 – Mon, Apr 20",
+    dn: null,
+    details: [
+      "KE 082 dep JFK T1 13:20 → ICN T2 17:50 (Apr 20)",
+      "KE 447 dep ICN 18:55 → HAN T2 21:35",
+      "Seats: 49H/49J (JFK–ICN) · 54C/54B (ICN–HAN)",
+      "Booking ref: FIS3KT",
+    ],
+  },
+  {
+    loc: "Hanoi",
+    sub: "Maison Nhã Truc Bach Lake",
+    type: "explore",
+    flag: "🇻🇳",
+    dateRange: "Mon, Apr 20 – Wed, Apr 23",
+    dn: "4D3N",
+    details: [
+      "Stay: Maison Nhã Truc Bach Lake · conf 6083242723 · cash only",
+      "Old Quarter (36 Streets), Hoan Kiem Lake, Temple of Literature",
+      "Museum of Ethnology, Hoa Lo Prison, Train Street (~3:30pm & 7:30pm)",
+      "Egg coffee at Café Giang · Bun cha · Bia Hơi junction",
+    ],
+  },
+  {
+    loc: "Ha Giang Loop",
+    sub: "BiBi easyrider tour",
+    type: "adventure",
+    flag: "🇻🇳",
+    dateRange: "Thu, Apr 23 – Mon, Apr 27",
+    dn: "4D3N",
+    details: [
+      "BiBi pickup 13:00 from Hanoi",
+      "Day 2: Dong Van karst plateau (UNESCO Geopark), ethnic villages",
+      "Day 3: Ma Pi Leng Pass + Nho Que canyon — most dramatic day",
+      "Day 4: Return to Hanoi ~22:00",
+    ],
+  },
+  {
+    loc: "Hanoi",
+    sub: "Kecho Legacy Hotel & Spa",
+    type: "explore",
+    flag: "🇻🇳",
+    dateRange: "Mon, Apr 27 – Wed, Apr 29",
+    dn: "3D2N",
+    details: [
+      "Stay: Kecho Legacy Hotel & Spa · conf 5211127525",
+      "⚠️ Checkout by 12:00 Apr 29 · bus departs 08:10",
+      "Recovery day: Bat Trang pottery village, food crawl, or coffee wandering",
+    ],
+  },
+  {
+    loc: "Ninh Bình",
+    sub: "Fairy Mountain Retreat",
+    type: "explore",
+    flag: "🇻🇳",
+    dateRange: "Wed, Apr 29 – Fri, May 1",
+    dn: "3D2N",
+    details: [
+      "Bus dep 08:10 Duy Khang door pickup · conf 12GO29510892",
+      "Stay: Fairy Mountain Retreat · conf 6841.046.361 · villa + pool · breakfast",
+      "Tràng An boat tour (UNESCO), Múa Cave viewpoint, cycle rice paddies",
+      "⚠️ Checkout 12:00 · Laman Express train dep 21:45",
+    ],
+  },
+  {
+    loc: "Huế",
+    sub: "Su'e Homestay",
+    type: "explore",
+    flag: "🇻🇳",
+    dateRange: "Sat, May 2 – Tue, May 5",
+    dn: "4D3N",
+    details: [
+      "Arrive by Laman Express · morning",
+      "Stay: Su'e Homestay · conf 5978.978.913 · terrace · ⚠️ No WiFi",
+      "Imperial Citadel, Royal Tombs (Minh Mang + Khai Dinh), Thien Mu Pagoda",
+      "Perfume River sunset boat · Dong Ba Market · Bun Bo Hue 🌶️ ask mild",
+    ],
+  },
+  {
+    loc: "Hội An",
+    sub: "Airbnb hosted by Lyn · checkout 12:00",
+    type: "explore",
+    flag: "🇻🇳",
+    dateRange: "Tue, May 5 – Fri, May 8",
+    dn: "4D3N",
+    details: [
+      "Car/bus via Hai Van Pass ~2.5h · private ~$30–40 or bus ~$5pp",
+      "Stay: Airbnb hosted by Lyn · conf HMTTWEFD4B · checkout 12:00",
+      "Ancient Town at dawn, cooking class, custom tailoring, An Bang Beach",
+      "Cao Lầu · White Rose dumplings · Bánh Mì Phượng · lantern evenings",
+    ],
+  },
+  {
+    loc: "Đà Nẵng",
+    sub: "Minh Boutique",
+    type: "explore",
+    flag: "🇻🇳",
+    dateRange: "Fri, May 8 – Sat, May 9",
+    dn: "2D1N",
+    details: [
+      "Grab from Hội An ~30 min · no booking needed",
+      "Stay: Minh Boutique · conf 6993.016.643 · breakfast",
+      "Marble Mountains, My Khe Beach, Mi Quảng noodles, Lady Buddha",
+      "⚠️ K6 0841 dep 16:35 T2 → Siem Reap 18:40 · res HYLIXO",
+    ],
+  },
+  {
+    loc: "Siem Reap",
+    sub: "Golden Temple Hotel",
+    type: "explore",
+    flag: "🇰🇭",
+    dateRange: "Sat, May 9 – Mon, May 11",
+    dn: "3D2N",
+    details: [
+      "Stay: Golden Temple Hotel · conf 5211159981 · breakfast · ⚠️ 2nd pmt due May 7",
+      "Angkor Wat sunrise (5am), Angkor Thom, Bayon, Ta Prohm",
+      "Phare Circus · Pub Street · Artisans Angkor · Made in Cambodia Market",
+      "⚠️ Night bus dep 21:05 · conf F26-E4PBgB · seats 22 & 23",
+    ],
+  },
+  {
+    loc: "Koh Rong Samloem",
+    sub: "Island Center Point",
+    type: "beach",
+    flag: "🇰🇭",
+    dateRange: "Tue, May 12 – Fri, May 15",
+    dn: "4D3N",
+    details: [
+      "Ferry Sihanoukville → KRS ~$15pp · ⚠️ BOOK! Message re early check-in",
+      "Stay: Island Center Point · conf 6353.012.344 · Hillside Deluxe King · breakfast",
+      "Snorkeling, kayaking, jungle hike to Lazy Beach (~40 min)",
+      "Bioluminescent plankton at night — best on dark, moonless nights",
+    ],
+  },
+  {
+    loc: "Phnom Penh",
+    sub: "Amanjaya Pancam Suites · Junior Suite + balcony · river view",
+    type: "explore",
+    flag: "🇰🇭",
+    dateRange: "Fri, May 15 – Sat, May 16",
+    dn: "2D1N",
+    details: [
+      "AM ferry KRS → Sihanoukville + Mekong Express bus → Phnom Penh · ⚠️ BOOK ferry",
+      "Stay: Amanjaya Pancam Suites · conf 5886.893.322 · Junior Suite, balcony, river view",
+      "Royal Palace, Tuol Sleng (S-21), Russian Market, Riverside sunset",
+      "⚠️ Leave hotel by 20:00 · Asiana OZ dep 23:25 · conf DYBT5H",
+    ],
+  },
+  {
+    loc: "Seoul",
+    sub: "Airbnb · Jung-gu, 24 Chungmu-ro · checkout 11:00",
+    type: "explore",
+    flag: "🇰🇷",
+    dateRange: "Sun, May 17 – Thu, May 21",
+    dn: "5D4N",
+    details: [
+      "Arrive ICN 06:50 · Stay: Airbnb Jung-gu, 24 Chungmu-ro · conf HMNWX855CB · checkout 11:00",
+      "Gyeongbokgung Palace, Bukchon Hanok Village, Insadong, Hongdae",
+      "Gwangjang Market, N Seoul Tower, Myeongdong, DMZ tour option",
+      "Korean BBQ · Tteokbokki · Chimaek · Jjimjilbang spa",
+    ],
+  },
+  {
+    loc: "Return Flight",
+    sub: "Seoul → NYC",
+    type: "travel",
+    flag: "✈️",
+    dateRange: "Thu, May 21",
+    dn: null,
+    details: [
+      "OZ 222 dep ICN 08:30 → JFK 10:00 same day",
+      "Seats 36J & 36K · conf O14N52",
+      "Welcome home! 🎉",
+    ],
+  },
+];
+
+// ── DATA: CONFIRMED BOOKINGS ─────────────────────────────────────────────────
+const CONFIRMED = [
+  { icon: "✈️", title: "JFK → ICN → HAN", date: "Apr 19–20", warn: false, rows: [
+    ["Flight", "KE 082 + KE 447 — Korean Air"],
+    ["Departs", "JFK T1 — Sun Apr 19 13:20"],
+    ["Via Seoul", "ICN T2 17:50 → KE447 18:55"],
+    ["Arrives", "HAN T2 — 21:35"],
+    ["Seats", "49H/49J · 54C/54B"],
+    ["Booking", "FIS3KT"],
+    ["Baggage", "1pc each (23kg) free"],
+    ["Cost", "$499.10 × 2 = $998.20"],
+  ]},
+  { icon: "🏠", title: "Maison Nhã Truc Bach Lake — Hanoi", date: "Apr 20–23 (3N)", warn: false, rows: [
+    ["Address", "51a Nguyễn Khắc Hiếu, Ba Dinh"],
+    ["Room", "1-Bed Apt, Balcony & City View"],
+    ["Confirmation", "6083242723"],
+    ["Phone", "+84989355169"],
+    ["Payment", "Cash only — VND 5,443,200 (~$207)"],
+    ["Note", "Keys at on-site reception"],
+  ]},
+  { icon: "🏍️", title: "Ha Giang Loop — BiBi (4D3N)", date: "Apr 23–27", warn: false, rows: [
+    ["Pickup", "Thu Apr 23 at 13:00 — Hanoi"],
+    ["Return", "Mon Apr 27 ~22:00 — Hanoi"],
+    ["Route", "Ha Giang → Dong Van → Ma Pi Leng → Meo Vac"],
+    ["Includes", "Easyrider, accommodation, some meals"],
+  ]},
+  { icon: "🏠", title: "Kecho Legacy Hotel & Spa — Hanoi", date: "Apr 27–29 (2N)", warn: false, rows: [
+    ["Check-in", "Mon Apr 27 (late ~22:00)"],
+    ["Check-out", "Wed Apr 29 by 12:00"],
+    ["Confirmation", "5211127525"],
+    ["⚠️ Note", "Bus at 08:10 Apr 29 — checkout early"],
+  ]},
+  { icon: "🚌", title: "Bus: Hanoi → Ninh Bình", date: "Wed Apr 29, 08:10", warn: false, rows: [
+    ["Operator", "Duy Khang — door pickup"],
+    ["Confirmation", "12GO29510892 (12Go)"],
+  ]},
+  { icon: "🏠", title: "Fairy Mountain Retreat — Ninh Bình", date: "Apr 29 – May 1 (2N)", warn: false, rows: [
+    ["Type", "Villa + pool"],
+    ["Breakfast", "Included"],
+    ["Checkout", "Fri May 1 by 12:00"],
+    ["Confirmation", "6841.046.361"],
+    ["⚠️ Note", "Train dep 21:45 same evening"],
+  ]},
+  { icon: "🚂", title: "Train: Ninh Bình → Huế (Laman Express)", date: "Fri May 1, 21:45", warn: false, rows: [
+    ["Train", "Laman Express — overnight sleeper"],
+    ["Arrives", "Huế — Sat May 2 morning"],
+    ["Booking", "QX6WN1J5 (12Go)"],
+    ["Cost", "$210.41 total (2 tickets)"],
+  ]},
+  { icon: "🏠", title: "Su'e Homestay — Huế", date: "May 2–5 (3N)", warn: false, rows: [
+    ["Room", "Terrace"],
+    ["Confirmation", "5978.978.913"],
+    ["⚠️ Note", "No WiFi at property!"],
+  ]},
+  { icon: "🏠", title: "Airbnb hosted by Lyn — Hội An", date: "May 5–8 (3N)", warn: false, rows: [
+    ["Type", "Airbnb"],
+    ["Check-out", "Fri May 8 by 12:00"],
+    ["Confirmation", "HMTTWEFD4B"],
+  ]},
+  { icon: "🏠", title: "Minh Boutique — Đà Nẵng", date: "May 8–9 (1N)", warn: false, rows: [
+    ["Breakfast", "Included"],
+    ["Confirmation", "6993.016.643"],
+  ]},
+  { icon: "✈️", title: "Đà Nẵng → Siem Reap", date: "Sat May 9", warn: false, rows: [
+    ["Flight", "K6 0841 — Air Cambodia"],
+    ["Departs", "Da Nang T2 — 16:35"],
+    ["Arrives", "Siem Reap — 18:40"],
+    ["Reservation", "HYLIXO"],
+  ]},
+  { icon: "🏠", title: "Golden Temple Hotel — Siem Reap", date: "May 9–11 (2N)", warn: false, rows: [
+    ["Breakfast", "Included"],
+    ["Confirmation", "5211159981"],
+    ["Cost", "$156.50 non-refundable"],
+    ["⚠️ Note", "2nd payment due May 7"],
+  ]},
+  { icon: "🚌", title: "Night Bus: Siem Reap → Sihanoukville", date: "Mon May 11, 21:05", warn: false, rows: [
+    ["Confirmation", "F26-E4PBgB"],
+    ["Seats", "22 & 23"],
+    ["Arrives", "Sihanoukville — Tue May 12 morning"],
+  ]},
+  { icon: "🏠", title: "Island Center Point — Koh Rong Samloem", date: "May 12–15 (3N)", warn: false, rows: [
+    ["Room", "Hillside Deluxe King"],
+    ["Breakfast", "Included"],
+    ["Confirmation", "6353.012.344"],
+    ["⚠️ Note", "Message re early check-in (AM ferry)"],
+  ]},
+  { icon: "🏠", title: "Amanjaya Pancam Suites — Phnom Penh", date: "May 15–16 (1N)", warn: false, rows: [
+    ["Room", "Junior Suite + balcony, river view"],
+    ["Confirmation", "5886.893.322"],
+    ["⚠️ Note", "Leave by 20:00 for 23:25 flight"],
+  ]},
+  { icon: "✈️", title: "Phnom Penh → Seoul (ICN)", date: "Fri May 16", warn: false, rows: [
+    ["Flight", "Asiana OZ"],
+    ["Departs", "23:25"],
+    ["Arrives", "ICN — Sat May 17 06:50"],
+    ["Booking", "DYBT5H"],
+  ]},
+  { icon: "🏠", title: "Airbnb — Seoul (Jung-gu)", date: "May 17–21 (4N)", warn: false, rows: [
+    ["Address", "24 Chungmu-ro, Jung-gu"],
+    ["Check-out", "Thu May 21 by 11:00"],
+    ["Confirmation", "HMNWX855CB"],
+    ["Note", "⚠️ OZ 222 dep 08:30 — arrange early luggage storage"],
+  ]},
+  { icon: "✈️", title: "Seoul → JFK", date: "Thu May 21", warn: false, rows: [
+    ["Flight", "OZ 222 — United/Asiana"],
+    ["Departs", "ICN — 08:30"],
+    ["Arrives", "JFK — 10:00 same day"],
+    ["Seats", "36J & 36K"],
+    ["Confirmation", "O14N52"],
+  ]},
+  { icon: "🛡️", title: "SafetyWing — Nomad Insurance", date: "Apr 20 – May 17", warn: true, rows: [
+    ["Mauricio", "NI-0070577400"],
+    ["Carla", "NI-0070577500"],
+    ["Coverage", "$250k max · Evac $100k"],
+    ["Adventure add-on", "Purchased ✓"],
+    ["⚠️ EXPIRES", "May 17 — EXTEND TO MAY 21"],
+    ["Gap", "May 17–21 uncovered"],
+  ]},
+];
+
+const TO_BOOK = [
+  { icon: "⛴️", title: "Ferry: Sihanoukville → KRS", dates: "Tue May 12 AM", tip: "Speed Ferry Cambodia or GTVC. ~$15pp, ~45 min. Buy at port or book online 1–2 days ahead." },
+  { icon: "⛴️", title: "Ferry: KRS → PP (via Sihanoukville)", dates: "Fri May 15 AM", tip: "Ferry ~$12 (45 min) then Mekong Express bus → Phnom Penh ~$10–15 (3–4h)." },
+  { icon: "🚐", title: "Huế → Hội An transport", dates: "Tue May 5", tip: "Private car via Hai Van Pass ~$30–40 (scenic, worth it) or open bus ~$5pp. Book through Su'e." },
+  { icon: "🛡️", title: "SafetyWing — extend to May 21", dates: "Before May 17", tip: "Both policies expire May 17. Extend at safetywing.com. Covers Seoul + return. 5 min online." },
+];
+
+// ── DATA: EXPLORE ────────────────────────────────────────────────────────────
+const EXPLORE = {
+  hanoi: {
+    food: [
+      { name: "Phở Bò", spicy: false, price: "40–60k₫", where: "Phở Thìn, 13 Lò Đúc", desc: "Beef noodle soup — Hanoi's soul food. Clear broth, fresh herbs. Order 'tai' (rare) or 'chin' (well-done)." },
+      { name: "Bún Chả", spicy: false, price: "40–60k₫", where: "Bún Chả Hương Liên, 24 Lê Văn Hưu", desc: "Grilled pork patties with cold noodles and dipping broth. The Obama-Bourdain dish." },
+      { name: "Cà Phê Trứng", spicy: false, price: "25–35k₫", where: "Café Giảng, 39 Nguyễn Hữu Huân", desc: "Egg coffee — whipped yolk with condensed milk over strong coffee. Unique to Hanoi." },
+      { name: "Bánh Cuốn", spicy: false, price: "30–50k₫", where: "Bánh Cuốn Bà Hoành, 66 Tô Hiến Thành", desc: "Steamed rice rolls with pork and mushrooms. Delicate morning dish." },
+      { name: "Bia Hơi", spicy: false, price: "5–10k₫/glass", where: "Corner of Tạ Hiện & Lương Ngọc Quyến", desc: "Fresh daily draft beer — cheapest in the world. Tiny plastic stools, big atmosphere." },
+      { name: "Chả Cá", spicy: false, price: "120–180k₫", where: "Chả Cá Thăng Long, 19–21 Đường Thành", desc: "Turmeric fish sizzled tableside with dill. Hanoi's most famous specialty." },
+    ],
+    attractions: [
+      { name: "Old Quarter (36 Streets)", tip: "Free", desc: "Each street one trade. Hàng Gai (silk), Hàng Bạc (silver). Best before 9am." },
+      { name: "Temple of Literature", tip: "30k₫", desc: "Vietnam's first university, 1070 AD. Beautiful courtyards." },
+      { name: "Hoan Kiem Lake", tip: "30k₫ for temple", desc: "Sacred lake with red bridge to island temple. Best at dawn or dusk." },
+      { name: "Museum of Ethnology", tip: "40k₫. Grab to get there.", desc: "54 ethnic groups covered. Outdoor traditional houses. Plan 2–3 hours." },
+      { name: "Hoa Lo Prison", tip: "30k₫", desc: "French colonial prison, later held American POWs. Sobering and essential." },
+      { name: "Train Street", tip: "Order a drink at track-side cafés", desc: "Cafés centimeters from live tracks. Trains ~3:30pm & ~7:30pm." },
+    ],
+    shopping: [
+      { name: "Hàng Gai Street", what: "Silk scarves, lacquer boxes, embroidered bags", desc: "Silk, lacquerware, embroidery. Negotiate — start at 50%." },
+      { name: "Bat Trang Pottery Village", what: "Ceramics, teapots, bowls — can ship home", desc: "30 min from Hanoi. Watch artisans and buy directly. Great half-day trip." },
+      { name: "Craft Link (51 Văn Miếu)", what: "Ethnic textiles, baskets, jewelry", desc: "Fair-trade shop near Temple of Literature. Fixed prices — no haggling." },
+    ],
+  },
+  hagiang: {
+    food: [
+      { name: "Thắng Cố", spicy: true, price: "30–50k₫", where: "Dong Van market or roadside stalls", desc: "H'Mong horse-meat stew — bold, earthy, culturally significant." },
+      { name: "Mèn Mén", spicy: false, price: "20–40k₫", where: "Homestays along the loop", desc: "Steamed corn flour — H'Mong staple. Simple, filling, served with greens." },
+      { name: "Corn Wine (Rượu Ngô)", spicy: false, price: "Free with meal", where: "Homestays", desc: "Homemade corn liquor. Strong! Often offered by hosts. Sip carefully." },
+      { name: "Grilled Stream Fish", spicy: false, price: "50–80k₫", where: "Riverside restaurants in Meo Vac", desc: "Mountain stream fish grilled over charcoal with herbs. Simple perfection." },
+    ],
+    attractions: [
+      { name: "Ma Pi Leng Pass", tip: "Included in BiBi (Day 3)", desc: "SE Asia's most dramatic pass. 20km cliff edge above Nho Que canyon." },
+      { name: "Dong Van Karst Plateau", tip: "Included in loop", desc: "UNESCO Geopark. Ancient limestone, terraced fields, H'Mong villages." },
+      { name: "Lung Cu Flag Tower", tip: "Check with BiBi if on your route", desc: "Vietnam's northernmost point. 839 steps. Panoramic views into China." },
+      { name: "Sunday Markets", tip: "Ask BiBi about loop timing", desc: "Dong Van (Sunday) and Meo Vac markets. Locals in traditional dress, livestock trading." },
+    ],
+    shopping: [
+      { name: "Ethnic Minority Textiles", what: "Indigo fabrics, hemp bags, embroidered wallets", desc: "H'Mong batik and embroidery. Buy directly from artisans at homestays and markets." },
+    ],
+  },
+  ninhbinh: {
+    food: [
+      { name: "Dê Núi (Mountain Goat)", spicy: false, price: "150–300k₫ shared", where: "Goat restaurants between NB city and Tam Coc", desc: "Ninh Binh's signature — goat 7 ways: grilled, steamed, stir-fried, hotpot. Rich and tender." },
+      { name: "Cơm Cháy (Scorched Rice)", spicy: false, price: "50–80k₫", where: "Tam Coc area restaurants", desc: "Crispy rice crackers topped with stir-fried goat or vegetables. Uniquely Ninh Binh." },
+      { name: "Miến Lươn (Eel Noodle Soup)", spicy: false, price: "40–60k₫", where: "Local restaurants in Ninh Binh town", desc: "Glass noodles with eel — warming and flavorful. Northern specialty." },
+    ],
+    attractions: [
+      { name: "Tràng An Boat Tour", tip: "250k₫. Go 7–8am to beat crowds.", desc: "UNESCO Heritage. 2h through caves and karst valleys. Better than Tam Coc." },
+      { name: "Múa Cave Viewpoint", tip: "100k₫. Go 1h before sunset.", desc: "500 steps to panoramic view. Limestone karsts over rice paddies." },
+      { name: "Tam Coc Boat Ride", tip: "120k₫. Tip 50k₫ per boat.", desc: "2h row through paddies and three cave tunnels. More touristy than Trang An." },
+      { name: "Bích Động Pagoda", tip: "Free. 10 min cycle from Tam Coc.", desc: "Three-level pagoda built into a cliff. Quiet and atmospheric." },
+      { name: "Cycling Rice Paddies", tip: "50k₫/day from most hotels", desc: "Rent bikes, ride at sunrise or sunset. Spectacular and peaceful." },
+    ],
+    shopping: [
+      { name: "Văn Lâm Embroidery Village", what: "Tablecloths, wall hangings, portraits", desc: "Centuries-old hand embroidery tradition. Watch artisans at work. Near Tam Coc." },
+    ],
+  },
+  hue: {
+    food: [
+      { name: "Bún Bò Huế", spicy: true, price: "30–50k₫", where: "O Phượng, 7 Phạm Hồng Thái", desc: "Beef & pork noodle soup with lemongrass and shrimp paste. The city's signature." },
+      { name: "Bánh Khoái", spicy: false, price: "25–40k₫", where: "Lạc Thiện, 6 Đình Tiên Hoàng (since the 60s)", desc: "Crispy pancake with shrimp, pork, sprouts. Dipped in peanut sauce." },
+      { name: "Cơm Hến", spicy: true, price: "15–25k₫", where: "Street stalls near Dong Ba Market", desc: "Baby clams on cold rice with herbs, peanuts, chili oil. Unique Hue breakfast." },
+      { name: "Nem Lụi", spicy: false, price: "40–60k₫", where: "Quán Hạnh, 11 Phó Đức Chính", desc: "Lemongrass pork skewers in rice paper with herbs and dipping sauce." },
+      { name: "Chè Huế", spicy: false, price: "10–20k₫", where: "Chè Hẻm, 17/3 Hùng Vương", desc: "Dozens of sweet desserts — beans, lotus seeds, tapioca, coconut milk." },
+    ],
+    attractions: [
+      { name: "Imperial Citadel (Đại Nội)", tip: "200k₫. Some areas under renovation.", desc: "Nguyen Dynasty palace complex. UNESCO. Allow 2–3 hours." },
+      { name: "Royal Tomb of Minh Mạng", tip: "150k₫. 12km south — Grab.", desc: "Most architecturally harmonious tomb. Lake, gardens, perfect symmetry." },
+      { name: "Royal Tomb of Khai Định", tip: "150k₫. Combine with Minh Mang.", desc: "Ornate Vietnamese-European fusion. Elaborate mosaic interior." },
+      { name: "Thiên Mụ Pagoda", tip: "Free. Combine with river boat.", desc: "Vietnam's most iconic pagoda on the Perfume River. Seven-story tower." },
+      { name: "Perfume River Sunset Boat", tip: "200–300k₫ private (~1h)", desc: "Dragon boat cruise at golden hour. Magical." },
+    ],
+    shopping: [
+      { name: "Dong Ba Market", what: "Non la (poem hats), sesame candy, silk", desc: "Hue's main market — food downstairs, textiles and hats upstairs." },
+      { name: "Healing the Wounded Heart", what: "Embroidered cards, art, accessories", desc: "Social enterprise on Vo Thi Sau St. Crafts made by people with disabilities." },
+    ],
+  },
+  hoian: {
+    food: [
+      { name: "Cao Lầu", spicy: false, price: "35–50k₫", where: "Cao Lầu Thanh, Trần Phú St", desc: "Thick noodles, pork, croutons — ONLY made in Hoi An (unique well water required)." },
+      { name: "Bánh Mì Phượng", spicy: false, price: "25–35k₫", where: "2B Phan Châu Trinh", desc: "Vietnam's most famous banh mi. Crispy baguette, multiple fillings. Bourdain approved." },
+      { name: "White Rose Dumplings", spicy: false, price: "30–45k₫", where: "White Rose Restaurant, 533 Hai Bà Trưng", desc: "Translucent shrimp dumplings shaped like roses. Made by one family only." },
+      { name: "Bánh Xèo", spicy: false, price: "25–35k₫", where: "Bà Dưỡng, 80/4 Trần Hưng Đạo", desc: "Crispy crepe with shrimp, pork, sprouts. Wrap in lettuce and herbs." },
+    ],
+    attractions: [
+      { name: "Ancient Town at Dawn", tip: "120k₫ (includes 5 sites)", desc: "UNESCO old town before crowds. Japanese Bridge, assembly halls. Go before 7am." },
+      { name: "An Bang Beach", tip: "Free. Bike or Grab. Loungers 50k₫.", desc: "Relaxed beach 6km from town. Less crowded than Da Nang beaches." },
+      { name: "Cooking Class", tip: "~$25–35pp. Red Bridge or Tra Que Water Wheel.", desc: "Market visit + hands-on cooking. Perfect for Carla. Half-day." },
+      { name: "Cam Thanh Basket Boats", tip: "~150k₫pp. Go early.", desc: "Round basket boats through coconut mangroves. Drivers spin them!" },
+      { name: "Lantern-Lit River (Thu Bon)", tip: "Free. Lantern release 20k₫.", desc: "River glows every evening from 6pm. Best photos from An Hoi Bridge." },
+    ],
+    shopping: [
+      { name: "Custom Tailoring", what: "Suits, dresses, coats — Yaly or A Dong Silk", desc: "Clothes made to measure in 24–48h. Always get 2 fittings." },
+      { name: "Lantern Workshops", what: "Silk and paper lanterns — Hoi An Lantern Shop", desc: "Buy handmade or make your own in a short workshop." },
+      { name: "Reaching Out Tea House", what: "Ceramics, textiles, lacquerware", desc: "Social enterprise on Hoang Dieu. Deaf artisans — order via written notes." },
+    ],
+  },
+  danang: {
+    food: [
+      { name: "Mì Quảng", spicy: false, price: "30–50k₫", where: "Mì Quảng Bà Vị, 166 Lê Đình Dương", desc: "Da Nang's signature — wide turmeric noodles, pork/shrimp, peanuts, minimal broth." },
+      { name: "Bánh Tráng Cuốn Thịt Heo", spicy: false, price: "40–60k₫", where: "Trần Restaurant, 4 Lê Duẩn", desc: "Boiled pork in rice paper with fermented shrimp sauce. Fresh and light." },
+      { name: "Beachside Seafood", spicy: false, price: "150–300k₫ shared", where: "Bé Mặn or Hải Sản Phố, Võ Nguyên Giáp", desc: "Pick live fish from tanks at beachside restaurants. Grilled, steamed, or stir-fried." },
+    ],
+    attractions: [
+      { name: "Marble Mountains", tip: "40k₫ + 15k₫ elevator. Early morning.", desc: "Five limestone hills with Buddhist caves, tunnels, and city views from the top." },
+      { name: "My Khe Beach", tip: "Free. Great for sunrise.", desc: "Long, clean, wide — one of Central Vietnam's best beaches." },
+      { name: "Lady Buddha, Son Tra", tip: "Free. 20 min from center.", desc: "67m Lady Buddha statue on peninsula. Stunning ocean panorama." },
+      { name: "Dragon Bridge", tip: "Free. Watch from riverbank.", desc: "Breathes fire and water on Sat/Sun evenings at 9pm." },
+    ],
+    shopping: [
+      { name: "Han Market", what: "Dried seafood, Vietnamese coffee, fabrics", desc: "Central market — food downstairs, dry goods and clothing upstairs." },
+      { name: "Marble Mountains Stone Carving", what: "Stone statues, jewelry, carved figurines", desc: "Workshops at the base of the mountains. Hand-carved marble pieces." },
+    ],
+  },
+  siemreap: {
+    food: [
+      { name: "Fish Amok", spicy: false, price: "$5–8", where: "Mahob Khmer or Chanrey Tree", desc: "Cambodia's national dish — steamed fish curry in banana leaf. Creamy, mild, fragrant." },
+      { name: "Lok Lak", spicy: false, price: "$4–6", where: "Khmer Kitchen, The Passage", desc: "Stir-fried beef cubes with lime-pepper dip, fried egg, on lettuce." },
+      { name: "Nom Banh Chok", spicy: false, price: "$1–2", where: "Morning vendors at Psar Chas (Old Market)", desc: "Rice noodles in green fish curry. Traditional Cambodian breakfast." },
+      { name: "Draft Beer", spicy: false, price: "$0.50–1/glass", where: "Pub Street — happy hour all evening", desc: "Angkor or Cambodia beer on tap. Cheapest drinks in Southeast Asia." },
+    ],
+    attractions: [
+      { name: "Angkor Wat Sunrise", tip: "$37/day or $62/3-day pass", desc: "World's largest religious monument. Arrive 5am for the reflecting pool sunrise." },
+      { name: "Bayon Temple (Angkor Thom)", tip: "Included in pass", desc: "216 giant stone faces gazing every direction. Mysterious and photogenic." },
+      { name: "Ta Prohm", tip: "Included in pass. Best mid-afternoon.", desc: "The 'Tomb Raider' temple — giant tree roots consuming ancient stone." },
+      { name: "Phare Circus", tip: "$18–38. Book at pharecircus.org. 8pm nightly.", desc: "Cambodian acrobatic circus by a social enterprise. Genuinely world-class." },
+    ],
+    shopping: [
+      { name: "Artisans Angkor", what: "Silk, stone carvings, lacquerware, silver", desc: "Social enterprise training rural Cambodians. Free workshop tours. Quality guaranteed." },
+      { name: "Made in Cambodia Market", what: "Handmade jewelry, beauty products, artwork", desc: "Night market 6pm–midnight. Local artisans only — no mass-produced goods." },
+    ],
+  },
+  kohrong: {
+    food: [
+      { name: "Seafood BBQ", spicy: false, price: "$5–10", where: "Saracen Bay or Lazy Beach restaurants", desc: "Catch of the day grilled on the beach. Most guesthouses do evening BBQ." },
+      { name: "Khmer Curry", spicy: false, price: "$4–6", where: "Any island restaurant", desc: "Coconut curry with fish or chicken. Milder than Thai. Fragrant lemongrass." },
+      { name: "Mango Sticky Rice", spicy: false, price: "$2–3", where: "Beach bars on Saracen Bay", desc: "Ripe mango with coconut sticky rice. Perfect after a beach day." },
+    ],
+    attractions: [
+      { name: "Bioluminescent Plankton", tip: "Free — walk into the water after dark", desc: "Water glows blue-green at night. Best on dark, cloudy nights at Lazy Beach." },
+      { name: "Lazy Beach", tip: "Bring water and snacks for the hike", desc: "Secluded southwest beach. Jungle hike ~40 min from Saracen Bay." },
+      { name: "Snorkeling", tip: "Gear ~$5/day or boat trip ~$15", desc: "Good coral and fish around the south end of the island." },
+      { name: "Sunset Viewpoint", tip: "Free. Bring mosquito repellent.", desc: "Short steep hike between Saracen and M'Pai Bay. Panoramic Gulf of Thailand views." },
+    ],
+    shopping: [
+      { name: "Very Limited — plan ahead", what: "Buy sunscreen, snacks, toiletries in Sihanoukville", desc: "Remote island with minimal supplies. Small shops sell basics at island prices." },
+    ],
+  },
+  phnompenh: {
+    food: [
+      { name: "Bai Sach Chrouk", spicy: false, price: "$1.50–2.50", where: "Corner vendors near Central Market (before 9am)", desc: "Coconut-garlic pork over broken rice. Cambodia's best breakfast." },
+      { name: "Kampot Pepper Crab", spicy: true, price: "$8–15", where: "Malis Restaurant, 136 Norodom Blvd", desc: "Crab stir-fried with fresh green Kampot peppercorns. Extraordinary flavor." },
+      { name: "Kuy Teav", spicy: false, price: "$1.50–2.50", where: "Morning stalls near Central Market", desc: "Pork and seafood rice noodle soup. Lighter and sweeter than pho." },
+    ],
+    attractions: [
+      { name: "Royal Palace & Silver Pagoda", tip: "$10. Cover knees and shoulders.", desc: "King's official residence. Throne Hall, Emerald Buddha, Silver Pagoda." },
+      { name: "Tuol Sleng (S-21)", tip: "$5 + $3 audio guide", desc: "Khmer Rouge torture prison. Harrowing but essential. Audio guide recommended." },
+      { name: "Russian Market", tip: "Morning. Less crowded than Central Market.", desc: "Best all-around shopping in Phnom Penh. Clothes, silk, carvings, silver." },
+      { name: "Riverside Promenade", tip: "Free. From 5pm.", desc: "Mekong waterfront packed with locals at sunset. Street food carts everywhere." },
+    ],
+    shopping: [
+      { name: "Russian Market (Toul Tom Poung)", what: "Silk scarves, Kampot pepper, silverwork, kramas", desc: "Best all-around PP shopping. Wide selection, reasonable prices." },
+      { name: "Daughters of Cambodia", what: "Bags, jewelry, candles, clothing", desc: "Social enterprise on Street 178. Employs trafficking survivors." },
+    ],
+  },
+  seoul: {
+    food: [
+      { name: "Korean BBQ", spicy: false, price: "15–25k₩/pp", where: "Mapo Sutbul Galbi (Mapo-gu)", desc: "Grill bulgogi, samgyeopsal, or galbi at the table. Banchan side dishes included." },
+      { name: "Tteokbokki", spicy: true, price: "3–5k₩", where: "Gwangjang Market or any street stall", desc: "Chewy rice cakes in sweet-spicy sauce. Korea's most popular street food." },
+      { name: "Gwangjang Market", spicy: false, price: "3–8k₩/item", where: "Jongno 4-ga", desc: "Seoul's best food market. Bindaetteok (mung pancakes), mayak kimbap, yukhoe (raw beef)." },
+      { name: "Chimaek", spicy: false, price: "15–20k₩", where: "Local spots in Hongdae", desc: "Fried chicken + beer. Korea's most beloved combo. Best late at night." },
+    ],
+    attractions: [
+      { name: "Gyeongbokgung Palace", tip: "3k₩. Wear hanbok (~15k₩ rental) = free entry.", desc: "Grandest palace. Royal Guard Changing at 10am and 2pm daily." },
+      { name: "Bukchon Hanok Village", tip: "Free. 15 min from palace.", desc: "Traditional Korean houses on hilly streets. Photogenic — keep noise down (it's residential)." },
+      { name: "DMZ Tour", tip: "$45–80pp. Book ahead. Bring passport.", desc: "Most fortified border on earth. JSA (Joint Security Area) needs advance booking." },
+      { name: "Jjimjilbang (Korean Spa)", tip: "Dragon Hill Spa, Yongsan — ~12k₩. Open 24h.", desc: "Must-do Korean experience. Gender baths + co-ed sauna rooms. Relax for hours." },
+      { name: "Hongdae", tip: "Free to wander. Best late afternoon–night.", desc: "Creative neighborhood. Street performances, indie shops, vintage stores, nightlife." },
+    ],
+    shopping: [
+      { name: "Namdaemun Market", what: "Ginseng, kitchenware, accessories, street food", desc: "Korea's largest traditional market. Open since 1414." },
+      { name: "Insadong", what: "Pottery, calligraphy supplies, traditional paper, tea", desc: "Traditional art and craft street. Galleries, tea houses, unique souvenirs." },
+      { name: "Myeongdong", what: "K-beauty skincare (Innisfree, Sulwhasoo), cosmetics", desc: "Korea's beauty and skincare mecca. Every major brand has a flagship here." },
+    ],
+  },
+};
+
+// ── DATA: PHRASEBOOK ─────────────────────────────────────────────────────────
+const PHRASES = {
+  vietnam: {
+    label: "🇻🇳 Vietnamese", flag: "🇻🇳",
+    note: "Vietnamese is tonal — approximations below use Northern/Hanoi accent. Any attempt earns big smiles.",
+    currency: "100,000 VND ≈ $4. Prices often quoted in 'nghìn' (thousands) — 'năm mươi' (50) means 50,000 VND.",
+    categories: {
+      essentials: { label: "Essentials", icon: "👋", phrases: [
+        { en: "Hello", local: "Xin chào", rom: "Sin chow" },
+        { en: "Goodbye", local: "Tạm biệt", rom: "Tam byeht" },
+        { en: "Thank you", local: "Cảm ơn", rom: "Gam un" },
+        { en: "Thank you very much", local: "Cảm ơn rất nhiều", rom: "Gam un raht nyew" },
+        { en: "You're welcome", local: "Không có gì", rom: "Khong koh yee" },
+        { en: "Please", local: "Làm ơn", rom: "Lam un" },
+        { en: "Sorry / Excuse me", local: "Xin lỗi", rom: "Sin loy" },
+        { en: "Yes", local: "Vâng / Có", rom: "Vung / Koh" },
+        { en: "No", local: "Không", rom: "Khong" },
+        { en: "I don't understand", local: "Tôi không hiểu", rom: "Toy khong hyew" },
+        { en: "Do you speak English?", local: "Bạn có nói tiếng Anh không?", rom: "Ban koh noy tyeng Anh khong?" },
+        { en: "My name is...", local: "Tên tôi là...", rom: "Ten toy la..." },
+      ]},
+      food: { label: "Food & Drink", icon: "🍜", phrases: [
+        { en: "I'd like to order", local: "Tôi muốn gọi món", rom: "Toy mwon goy mon" },
+        { en: "The menu, please", local: "Cho tôi xem thực đơn", rom: "Cho toy sem thuhk dun" },
+        { en: "This one (pointing)", local: "Cái này", rom: "Kai nay" },
+        { en: "Delicious!", local: "Ngon quá!", rom: "Ngon kwa!" },
+        { en: "Not spicy please", local: "Không cay", rom: "Khong kay" },
+        { en: "A little spicy", local: "Ít cay", rom: "It kay" },
+        { en: "No MSG please", local: "Không bột ngọt", rom: "Khong boht ngot" },
+        { en: "Vegetarian", local: "Ăn chay", rom: "An chay" },
+        { en: "Water", local: "Nước", rom: "Nuhk" },
+        { en: "Beer", local: "Bia", rom: "Byah" },
+        { en: "Iced milk coffee", local: "Cà phê sữa đá", rom: "Ka feh suh-ah da" },
+        { en: "Egg coffee", local: "Cà phê trứng", rom: "Ka feh chung" },
+        { en: "The bill please", local: "Tính tiền", rom: "Ting tyen" },
+        { en: "How much?", local: "Bao nhiêu tiền?", rom: "Bow nyew tyen?" },
+      ]},
+      dishes: { label: "Must-Try", icon: "⭐", isDishes: true, items: [
+        { name: "Bún chả", note: "Hanoi BBQ pork with cold noodles", spicy: false },
+        { name: "Phở bò", note: "Beef noodle soup — usually mild", spicy: false },
+        { name: "Bánh mì", note: "Vietnamese baguette sandwich", spicy: false },
+        { name: "Bánh cuốn", note: "Steamed rice rolls — mild", spicy: false },
+        { name: "Bún bò Huế", note: "Hue spicy beef noodle soup — ask 'không cay'", spicy: true },
+        { name: "Cơm hến", note: "Hue clam rice — mildly spicy", spicy: true },
+        { name: "Cao lầu", note: "Hoi An noodles — location-locked, don't skip!", spicy: false },
+        { name: "White Rose (Bánh Bao Bạch Tuộc)", note: "Hoi An shrimp dumplings — mild", spicy: false },
+      ]},
+      transport: { label: "Transport", icon: "🚌", phrases: [
+        { en: "Where is...?", local: "...ở đâu?", rom: "...uh dow?" },
+        { en: "I want to go to...", local: "Tôi muốn đến...", rom: "Toy mwon den..." },
+        { en: "Left", local: "Trái", rom: "Chai" },
+        { en: "Right", local: "Phải", rom: "Fai" },
+        { en: "Straight ahead", local: "Thẳng", rom: "Tang" },
+        { en: "Stop here", local: "Dừng ở đây", rom: "Yung uh day" },
+        { en: "How far?", local: "Bao xa?", rom: "Bow sa?" },
+        { en: "Train station", local: "Ga tàu", rom: "Ga tow" },
+        { en: "Bus station", local: "Bến xe", rom: "Ben seh" },
+        { en: "Airport", local: "Sân bay", rom: "Sun bay" },
+      ]},
+      shopping: { label: "Shopping", icon: "🛍️", phrases: [
+        { en: "How much?", local: "Bao nhiêu?", rom: "Bow nyew?" },
+        { en: "Too expensive", local: "Đắt quá", rom: "Dat kwa" },
+        { en: "Can you lower the price?", local: "Bớt giá được không?", rom: "But ya duhk khong?" },
+        { en: "I'll take it", local: "Tôi mua cái này", rom: "Toy mwa kai nay" },
+        { en: "I'm just looking", local: "Tôi chỉ xem thôi", rom: "Toy chee sem thoy" },
+      ]},
+      emergencies: { label: "Emergencies", icon: "🆘", phrases: [
+        { en: "Help!", local: "Cứu tôi với!", rom: "Kew toy voy!" },
+        { en: "Call a doctor", local: "Gọi bác sĩ", rom: "Goy bak see" },
+        { en: "Police", local: "Cảnh sát", rom: "Kan sat" },
+        { en: "Hospital", local: "Bệnh viện", rom: "Bayn vyen" },
+        { en: "I'm sick", local: "Tôi bị bệnh", rom: "Toy bee bayn" },
+        { en: "I'm allergic to...", local: "Tôi bị dị ứng với...", rom: "Toy bee yee ung voy..." },
+      ]},
+      numbers: { label: "Numbers", icon: "🔢", isNumbers: true, items: [
+        { num: "1–5", local: "Một · Hai · Ba · Bốn · Năm", rom: "Moht · Hai · Ba · Bon · Nam" },
+        { num: "6–10", local: "Sáu · Bảy · Tám · Chín · Mười", rom: "Sow · Bay · Tam · Chin · Muh-ee" },
+        { num: "10,000", local: "Mười nghìn", rom: "Muh-ee ngin", ctx: "≈ $0.40" },
+        { num: "50,000", local: "Năm mươi nghìn", rom: "Nam muh-ee ngin", ctx: "≈ $2" },
+        { num: "100,000", local: "Một trăm nghìn", rom: "Moht cham ngin", ctx: "≈ $4" },
+        { num: "200,000", local: "Hai trăm nghìn", rom: "Hai cham ngin", ctx: "≈ $8" },
+        { num: "500,000", local: "Năm trăm nghìn", rom: "Nam cham ngin", ctx: "≈ $20 (largest bill)" },
+      ]},
+    },
+  },
+  cambodia: {
+    label: "🇰🇭 Khmer", flag: "🇰🇭",
+    note: "No tones, but complex sounds. Romanization is simplified for practical use. USD is widely accepted.",
+    currency: "~4,000 riel = $1 USD. Small change often given in riel even when paying USD.",
+    categories: {
+      essentials: { label: "Essentials", icon: "👋", phrases: [
+        { en: "Hello", local: "សួស្ដី", rom: "Sua s'dei" },
+        { en: "Goodbye", local: "លា​ហើយ", rom: "Lea haey" },
+        { en: "Thank you", local: "អរគុណ", rom: "Aw-kun" },
+        { en: "Thank you very much", local: "អរគុណច្រើន", rom: "Aw-kun ch'raan" },
+        { en: "You're welcome", local: "មិនអីទេ", rom: "Min ei teh" },
+        { en: "Please", local: "សូម", rom: "Sohm" },
+        { en: "Sorry / Excuse me", local: "សូមទោស", rom: "Sohm tohs" },
+        { en: "Yes (male / female)", local: "បាទ / ចាស", rom: "Baht / Jahs" },
+        { en: "No", local: "ទេ", rom: "Teh" },
+        { en: "I don't understand", local: "ខ្ញុំមិនយល់ទេ", rom: "Kh'nyom min yol teh" },
+        { en: "Do you speak English?", local: "តើអ្នកនិយាយភាសាអង់គ្លេសបានទេ?", rom: "Tae anak ni-yeay pheasaa Angkleh ban teh?" },
+      ]},
+      food: { label: "Food & Drink", icon: "🍜", phrases: [
+        { en: "I'd like to eat", local: "ខ្ញុំចង់ញាំ", rom: "Kh'nyom jong nyam" },
+        { en: "Menu please", local: "សូមបញ្ជីម្ហូប", rom: "Sohm ban-ji m'houp" },
+        { en: "Delicious!", local: "ឆ្ងាញ់!", rom: "Ch'ngaign!" },
+        { en: "Not spicy please", local: "សូមមិនហឹរ", rom: "Sohm min h'er" },
+        { en: "A little spicy", local: "ហឹរបន្តិច", rom: "H'er ban-tech" },
+        { en: "No MSG", local: "មិនដាក់ MSG", rom: "Min dak MSG" },
+        { en: "Vegetarian", local: "ញ៉ាំបន្លែ", rom: "Nyam bon-lae" },
+        { en: "Water", local: "ទឹក", rom: "Tuk" },
+        { en: "Beer", local: "ស្រាបៀរ", rom: "S'ra bia" },
+        { en: "Iced coffee", local: "កាហ្វេទឹកកក", rom: "Ka-feh tuk kok" },
+        { en: "The bill please", local: "សូមគិតលុយ", rom: "Sohm kit luy" },
+        { en: "How much?", local: "តម្លៃប៉ុន្មាន?", rom: "Dom-lai pon-maan?" },
+      ]},
+      dishes: { label: "Must-Try", icon: "⭐", isDishes: true, items: [
+        { name: "Amok trey", note: "Fish curry steamed in banana leaf — mild, iconic", spicy: false },
+        { name: "Lok lak", note: "Stir-fried beef with pepper sauce — mild", spicy: false },
+        { name: "Nom banh chok", note: "Khmer noodles with fish gravy — mild", spicy: false },
+        { name: "Bai sach chrouk", note: "Pork & rice breakfast staple — mild", spicy: false },
+        { name: "Kuy teav", note: "Pork noodle soup — mild", spicy: false },
+        { name: "Samlor machu", note: "Sour soup — mild to moderate", spicy: false },
+        { name: "Bok l'hong", note: "Green papaya salad — specify 'sohm min h'er'", spicy: true },
+      ]},
+      transport: { label: "Transport", icon: "🚌", phrases: [
+        { en: "Where is...?", local: "...នៅឯណា?", rom: "...nov ae naa?" },
+        { en: "I want to go to...", local: "ខ្ញុំចង់ទៅ...", rom: "Kh'nyom jong tov..." },
+        { en: "Left", local: "ឆ្វេង", rom: "Ch'veng" },
+        { en: "Right", local: "ស្ដាំ", rom: "S'dam" },
+        { en: "Straight ahead", local: "ត្រង់", rom: "Trong" },
+        { en: "Stop here", local: "ឈប់ទីនេះ", rom: "Ch'hup tee nih" },
+        { en: "Tuk-tuk", local: "តុក​តុក", rom: "Tuk-tuk" },
+        { en: "Airport", local: "អាកាសយានដ្ឋាន", rom: "Aa-kaas-yean-taan" },
+      ]},
+      shopping: { label: "Shopping", icon: "🛍️", phrases: [
+        { en: "How much?", local: "តម្លៃប៉ុន្មាន?", rom: "Dom-lai pon-maan?" },
+        { en: "Too expensive", local: "ថ្លៃណាស់", rom: "T'lai nah" },
+        { en: "Lower the price?", local: "បញ្ចុះតម្លៃបានទេ?", rom: "Ban-joh dom-lai ban teh?" },
+        { en: "I'll buy it", local: "ខ្ញុំទិញ", rom: "Kh'nyom tinh" },
+        { en: "Just looking", local: "មើលមើលទេ", rom: "Mel mel teh" },
+      ]},
+      emergencies: { label: "Emergencies", icon: "🆘", phrases: [
+        { en: "Help!", local: "ជួយផង!", rom: "Juoy p'hong!" },
+        { en: "Call a doctor", local: "ហៅពេទ្យ", rom: "Hao pait" },
+        { en: "Police", local: "នគរបាល", rom: "Nea-koa-raa-baal" },
+        { en: "Hospital", local: "មន្ទីរពេទ្យ", rom: "Mon-tii pait" },
+        { en: "I'm sick", local: "ខ្ញុំឈឺ", rom: "Kh'nyom ch'heu" },
+      ]},
+      numbers: { label: "Numbers", icon: "🔢", isNumbers: true, items: [
+        { num: "1–5", local: "មួយ · ពីរ · បី · បួន · ប្រាំ", rom: "Muoy · Pii · Bei · Buon · Pram" },
+        { num: "6–10", local: "ប្រាំមួយ · ប្រាំពីរ · ប្រាំបី · ប្រាំបួន · ដប់", rom: "Pram muoy · Pram pii · Pram bei · Pram buon · Dop" },
+        { num: "1,000 riel", local: "មួយពាន់", rom: "Muoy poan", ctx: "≈ $0.25" },
+        { num: "5,000 riel", local: "ប្រាំពាន់", rom: "Pram poan", ctx: "≈ $1.25" },
+        { num: "10,000 riel", local: "មួយម៉ឺន", rom: "Muoy meun", ctx: "≈ $2.50" },
+        { num: "50,000 riel", local: "ប្រាំម៉ឺន", rom: "Pram meun", ctx: "≈ $12.50" },
+        { num: "100,000 riel", local: "មួយសែន", rom: "Muoy saen", ctx: "≈ $25" },
+      ]},
+    },
+  },
+  korea: {
+    label: "🇰🇷 Korean", flag: "🇰🇷",
+    note: "Use polite -요 endings — always appreciated. Seoul tourist areas are very English-friendly.",
+    currency: "~1,350 won = $1 USD. 만원 (10,000 KRW) ≈ $7.40 — the most common bill. Largest: 오만원 (50,000).",
+    categories: {
+      essentials: { label: "Essentials", icon: "👋", phrases: [
+        { en: "Hello", local: "안녕하세요", rom: "An-nyeong-ha-se-yo" },
+        { en: "Goodbye (you're leaving)", local: "안녕히 계세요", rom: "An-nyeong-hi gye-se-yo" },
+        { en: "Goodbye (they're leaving)", local: "안녕히 가세요", rom: "An-nyeong-hi ga-se-yo" },
+        { en: "Thank you", local: "감사합니다", rom: "Gam-sa-ham-ni-da" },
+        { en: "Thank you (casual)", local: "고마워요", rom: "Go-ma-wo-yo" },
+        { en: "You're welcome", local: "천만에요", rom: "Cheon-man-e-yo" },
+        { en: "Please (request)", local: "주세요", rom: "Ju-se-yo" },
+        { en: "Sorry / Excuse me", local: "죄송합니다", rom: "Jwe-song-ham-ni-da" },
+        { en: "Yes", local: "네", rom: "Ne" },
+        { en: "No", local: "아니요", rom: "A-ni-yo" },
+        { en: "I don't understand", local: "모르겠어요", rom: "Mo-reu-ge-sseo-yo" },
+        { en: "Do you speak English?", local: "영어 하세요?", rom: "Yeong-eo ha-se-yo?" },
+      ]},
+      food: { label: "Food & Drink", icon: "🍜", phrases: [
+        { en: "Menu please", local: "메뉴 주세요", rom: "Me-nyu ju-se-yo" },
+        { en: "Excuse me! (flag staff)", local: "저기요!", rom: "Jeo-gi-yo!" },
+        { en: "One of these please", local: "이거 하나 주세요", rom: "I-geo ha-na ju-se-yo" },
+        { en: "Two of these", local: "이거 두 개 주세요", rom: "I-geo du gae ju-se-yo" },
+        { en: "One more please", local: "하나 더 주세요", rom: "Ha-na deo ju-se-yo" },
+        { en: "Delicious!", local: "맛있어요!", rom: "Ma-si-sseo-yo!" },
+        { en: "Not spicy please", local: "안 맵게 해주세요", rom: "An maep-ge hae-ju-se-yo" },
+        { en: "A little spicy", local: "조금 맵게", rom: "Jo-geum maep-ge" },
+        { en: "No spice at all", local: "맵지 않게", rom: "Maep-ji an-ke" },
+        { en: "Water", local: "물", rom: "Mul" },
+        { en: "Beer", local: "맥주", rom: "Maek-ju" },
+        { en: "Soju", local: "소주", rom: "So-ju" },
+        { en: "The bill please", local: "계산해 주세요", rom: "Gye-san-hae ju-se-yo" },
+        { en: "Together (one bill)", local: "같이 계산해주세요", rom: "Ga-chi gye-san-hae-ju-se-yo" },
+        { en: "Split the bill", local: "따로 계산해주세요", rom: "Dda-ro gye-san-hae-ju-se-yo" },
+        { en: "How much?", local: "얼마예요?", rom: "Eol-ma-ye-yo?" },
+      ]},
+      dishes: { label: "Must-Try", icon: "⭐", isDishes: true, items: [
+        { name: "삼겹살 Samgyeopsal", note: "Grilled pork belly BBQ — mild, the classic", spicy: false },
+        { name: "갈비 Galbi", note: "Beef short ribs BBQ — mild, sweet marinade", spicy: false },
+        { name: "비빔밥 Bibimbap", note: "Mixed rice bowl — ask '안 맵게' for mild", spicy: false },
+        { name: "삼계탕 Samgyetang", note: "Ginseng chicken soup — mild, restorative", spicy: false },
+        { name: "냉면 Naengmyeon", note: "Cold buckwheat noodles — mild (mul) or spicy (bibim)", spicy: false },
+        { name: "해물파전 Haemul pajeon", note: "Seafood scallion pancake — mild", spicy: false },
+        { name: "김치찌개 Kimchi jjigae", note: "Kimchi stew — specify '안 맵게'", spicy: true },
+        { name: "떡볶이 Tteokbokki", note: "Rice cakes in sauce — spicy by default", spicy: true },
+        { name: "순두부찌개 Sundubu jjigae", note: "Soft tofu stew — moderate, ask for mild", spicy: true },
+      ]},
+      transport: { label: "Transport", icon: "🚌", phrases: [
+        { en: "Where is...?", local: "...어디예요?", rom: "...eo-di-ye-yo?" },
+        { en: "I want to go to...", local: "...에 가고 싶어요", rom: "...e ga-go si-peo-yo" },
+        { en: "Left", local: "왼쪽", rom: "Oen-jjok" },
+        { en: "Right", local: "오른쪽", rom: "O-reun-jjok" },
+        { en: "Straight ahead", local: "직진", rom: "Jik-jin" },
+        { en: "Stop here please", local: "여기서 세워주세요", rom: "Yeo-gi-seo se-wo-ju-se-yo" },
+        { en: "Subway / Metro", local: "지하철", rom: "Ji-ha-cheol" },
+        { en: "Bus", local: "버스", rom: "Beo-seu" },
+        { en: "Taxi", local: "택시", rom: "Taek-si" },
+        { en: "Airport", local: "공항", rom: "Gong-hang" },
+        { en: "Station", local: "역", rom: "Yeok" },
+      ]},
+      shopping: { label: "Shopping", icon: "🛍️", phrases: [
+        { en: "How much?", local: "얼마예요?", rom: "Eol-ma-ye-yo?" },
+        { en: "Too expensive", local: "너무 비싸요", rom: "Neo-mu bi-ssa-yo" },
+        { en: "Can you discount?", local: "깎아 주실 수 있어요?", rom: "Kka-kka ju-sil su i-sseo-yo?" },
+        { en: "I'll buy it", local: "살게요", rom: "Sal-ge-yo" },
+        { en: "Just looking", local: "구경만 하는 거예요", rom: "Gu-gyeong-man ha-neun geo-ye-yo" },
+        { en: "Do you have...?", local: "...있어요?", rom: "...i-sseo-yo?" },
+      ]},
+      emergencies: { label: "Emergencies", icon: "🆘", phrases: [
+        { en: "Help!", local: "도와주세요!", rom: "Do-wa-ju-se-yo!" },
+        { en: "Call a doctor", local: "의사를 불러주세요", rom: "Ui-sa-reul bul-leo-ju-se-yo" },
+        { en: "Police", local: "경찰", rom: "Gyeong-chal" },
+        { en: "Hospital", local: "병원", rom: "Byeong-won" },
+        { en: "I'm sick", local: "아파요", rom: "A-pa-yo" },
+        { en: "Emergency", local: "응급", rom: "Eung-geup" },
+      ]},
+      numbers: { label: "Numbers", icon: "🔢", isNumbers: true, items: [
+        { num: "1–5", local: "일 · 이 · 삼 · 사 · 오", rom: "Il · I · Sam · Sa · O" },
+        { num: "6–10", local: "육 · 칠 · 팔 · 구 · 십", rom: "Yuk · Chil · Pal · Gu · Sip" },
+        { num: "1,000 ₩", local: "천원", rom: "Cheon-won", ctx: "≈ $0.75 (coin)" },
+        { num: "5,000 ₩", local: "오천원", rom: "O-cheon-won", ctx: "≈ $3.70" },
+        { num: "10,000 ₩", local: "만원", rom: "Man-won", ctx: "≈ $7.40 — most common" },
+        { num: "50,000 ₩", local: "오만원", rom: "O-man-won", ctx: "≈ $37 — largest bill" },
+      ]},
+    },
+  },
+};
+
+// ── SHARED COMPONENTS ────────────────────────────────────────────────────────
+function TopTabs({ active, onChange, tabs }) {
+  return (
+    <div style={{ display: "flex", borderBottom: `1px solid ${P.border}`, background: P.bg, position: "sticky", top: 0, zIndex: 10, overflowX: "auto" }}>
+      {tabs.map(t => (
+        <button
+          key={t.id}
+          onClick={() => onChange(t.id)}
+          style={{
+            flex: "none", padding: "12px 11px", fontSize: 12,
+            fontWeight: active === t.id ? 700 : 500,
+            color: active === t.id ? P.accent : P.textMid,
+            background: "none", border: "none",
+            borderBottom: active === t.id ? `2.5px solid ${P.accent}` : "2.5px solid transparent",
+            cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit",
+          }}
+        >
+          {t.icon} {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SubTabs({ active, onChange, tabs }) {
+  return (
+    <div style={{ display: "flex", gap: 6, padding: "8px 16px 10px", overflowX: "auto", background: P.bg }}>
+      {tabs.map(t => (
+        <button
+          key={t.id}
+          onClick={() => onChange(t.id)}
+          style={{
+            flex: "none", padding: "7px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+            border: active === t.id ? `1.5px solid ${P.accent}` : `1px solid ${P.border}`,
+            background: active === t.id ? P.accentLight : P.card,
+            color: active === t.id ? P.accent : P.textMid,
+            cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+          }}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Card({ children, style, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: P.card, borderRadius: 10, border: `1px solid ${P.border}`,
+        padding: 16, marginBottom: 12,
+        cursor: onClick ? "pointer" : "default", ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ── TAB: ITINERARY ───────────────────────────────────────────────────────────
+function ItineraryTab({ groups, onEditOpen }) {
+  const [expanded, setExpanded] = useState(null);
+
+  return (
+    <div style={{ padding: "16px 16px 100px", position: "relative" }}>
+      <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 22, color: P.text, margin: "0 0 4px" }}>Your Journey</h2>
+      <p style={{ color: P.textLight, fontSize: 13, margin: "0 0 14px" }}>Apr 19 – May 21, 2026 · 33 days · 13 stops</p>
+
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 18, padding: "8px 12px", background: P.card, borderRadius: 8, border: `1px solid ${P.border}` }}>
+        {Object.entries(TYPE_CFG).map(([key, cfg]) => (
+          <div key={key} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 9, height: 9, borderRadius: "50%", background: cfg.color }} />
+            <span style={{ fontSize: 11, color: P.textMid, fontWeight: 500 }}>{cfg.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {groups.map((stop, i) => {
+        const cfg = TYPE_CFG[stop.type] || { color: P.textMid, bg: "#f5f3ef" };
+        const open = expanded === i;
+        const isLast = i === groups.length - 1;
+
+        return (
+          <div key={i} style={{ display: "flex", gap: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 22, flexShrink: 0, paddingTop: 18 }}>
+              <div style={{ width: 12, height: 12, borderRadius: "50%", background: cfg.color, border: `2.5px solid ${P.bg}`, boxShadow: `0 0 0 1.5px ${cfg.color}`, flexShrink: 0 }} />
+              {!isLast && <div style={{ width: 2, flex: 1, background: P.border, marginTop: 3, minHeight: 24 }} />}
+            </div>
+
+            <div style={{ flex: 1, marginBottom: 10 }}>
+              <div
+                onClick={() => setExpanded(open ? null : i)}
+                style={{
+                  background: P.card, borderRadius: 10,
+                  border: `1px solid ${open ? cfg.color + "88" : P.border}`,
+                  padding: "12px 14px", cursor: "pointer",
+                  boxShadow: open ? `0 2px 10px ${cfg.color}22` : "none",
+                  transition: "border-color 0.15s",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                      <span style={{ fontSize: 16 }}>{stop.flag}</span>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: P.text }}>{stop.loc}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: P.textMid, lineHeight: 1.4 }}>
+                      {stop.dateRange}
+                      {stop.dn && (
+                        <span style={{
+                          marginLeft: 8, fontSize: 11, fontWeight: 700,
+                          color: cfg.color, background: cfg.bg,
+                          padding: "1px 7px", borderRadius: 10,
+                        }}>
+                          {stop.dn}
+                        </span>
+                      )}
+                    </div>
+                    {stop.sub && (
+                      <div style={{ fontSize: 11, color: P.textLight, marginTop: 3 }}>{stop.sub}</div>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 13, color: P.textLight, marginLeft: 8, marginTop: 2 }}>
+                    {open ? "▴" : "▾"}
+                  </span>
+                </div>
+
+                {open && (
+                  <div style={{ marginTop: 12, borderTop: `1px solid ${P.border}`, paddingTop: 10 }}>
+                    {stop.details.map((line, j) => (
+                      <div key={j} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "flex-start" }}>
+                        <span style={{ color: line.startsWith("⚠️") ? P.red : cfg.color, fontSize: 12, flexShrink: 0, marginTop: 1 }}>
+                          {line.startsWith("⚠️") ? "" : "·"}
+                        </span>
+                        <span style={{
+                          fontSize: 13, color: line.startsWith("⚠️") ? P.red : P.textMid,
+                          lineHeight: 1.5, fontWeight: line.startsWith("⚠️") ? 600 : 400,
+                        }}>
+                          {line}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      <button onClick={onEditOpen} style={{
+        position: "fixed", bottom: 24, right: 20, width: 52, height: 52,
+        borderRadius: "50%", background: P.text, border: "none", color: "#fff",
+        fontSize: 20, cursor: "pointer", fontFamily: "inherit",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.28)",
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20,
+      }} title="Edit itinerary">✏️</button>
+    </div>
+  );
+}
+
+// ── TAB: BOOKINGS ─────────────────────────────────────────────────────────────
+function BookingsTab({ confirmed, toBook, onEditOpen }) {
+  const [openIdx, setOpenIdx] = useState(null);
+  const [showNeeded, setShowNeeded] = useState(true);
+
+  return (
+    <div style={{ padding: "16px 16px 100px", position: "relative" }}>
+      <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 22, color: P.text, margin: "0 0 4px" }}>Bookings</h2>
+      <p style={{ color: P.textLight, fontSize: 13, margin: "0 0 20px" }}>Tap any card to expand</p>
+
+      <div style={{ fontSize: 13, fontWeight: 700, color: P.green, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
+        ✓ Confirmed ({confirmed.length})
+      </div>
+
+      {confirmed.map((b, i) => {
+        const open = openIdx === `c${i}`;
+        return (
+          <Card key={i} onClick={() => setOpenIdx(open ? null : `c${i}`)} style={{ boxShadow: open ? "0 2px 12px rgba(0,0,0,0.06)" : "none" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{b.icon}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>{b.title}</div>
+                <div style={{ fontSize: 12, color: P.textLight, marginTop: 2 }}>{b.date}</div>
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, color: b.warn ? P.red : P.green, background: b.warn ? P.redBg : P.greenBg, textTransform: "uppercase", flexShrink: 0 }}>
+                {b.warn ? "Extend!" : "OK ✓"}
+              </span>
+            </div>
+            {open && (
+              <div style={{ marginTop: 14, borderTop: `1px solid ${P.border}`, paddingTop: 12 }}>
+                {b.rows.map(([label, val], j) => (
+                  <div key={j} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: j < b.rows.length - 1 ? `1px solid ${P.border}44` : "none" }}>
+                    <span style={{ fontSize: 12, color: P.textLight, flexShrink: 0, marginRight: 12 }}>{label}</span>
+                    <span style={{ fontSize: 12, color: label.startsWith("⚠") ? P.red : P.text, fontWeight: 500, textAlign: "right", maxWidth: "60%", wordBreak: "break-word" }}>{val}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        );
+      })}
+
+      <div onClick={() => setShowNeeded(!showNeeded)} style={{ fontSize: 13, fontWeight: 700, color: P.amber, margin: "20px 0 10px", textTransform: "uppercase", letterSpacing: 0.5, cursor: "pointer" }}>
+        ⏳ Still to book ({toBook.length}) {showNeeded ? "▾" : "▸"}
+      </div>
+
+      {showNeeded && toBook.map((b, i) => {
+        const open = openIdx === `n${i}`;
+        return (
+          <Card key={i} onClick={() => setOpenIdx(open ? null : `n${i}`)} style={{ borderColor: P.amber + "55", borderStyle: "dashed" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{b.icon}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>{b.title}</div>
+                <div style={{ fontSize: 12, color: P.textLight, marginTop: 2 }}>{b.dates}</div>
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 6, color: P.amber, background: P.amberBg, textTransform: "uppercase", flexShrink: 0 }}>Book</span>
+            </div>
+            {open && (
+              <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 8, background: P.amberBg, fontSize: 12, color: P.textMid, lineHeight: 1.6 }}>
+                💡 {b.tip}
+              </div>
+            )}
+          </Card>
+        );
+      })}
+
+      <button onClick={onEditOpen} style={{
+        position: "fixed", bottom: 24, right: 20, width: 52, height: 52,
+        borderRadius: "50%", background: P.text, border: "none", color: "#fff",
+        fontSize: 20, cursor: "pointer", fontFamily: "inherit",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.28)",
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20,
+      }} title="Edit bookings">✏️</button>
+    </div>
+  );
+}
+
+// ── ADD ITEM MODAL ────────────────────────────────────────────────────────────
+function AddItemModal({ destObj, subTab, onAdd, onClose }) {
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 50); }, []);
+
+  const subLabel = subTab === "food" ? "food or drink" : subTab === "attractions" ? "attraction or activity" : "shop or market";
+  const placeholder = subTab === "food" ? "e.g. Maison Marou, bánh xèo stall…" : subTab === "attractions" ? "e.g. Temple of Literature, boat tour…" : "e.g. silk shop, night market…";
+
+  const SCHEMAS = {
+    food: `Return ONLY valid JSON (no markdown) matching exactly:
+{"name":"string","desc":"1–2 sentence description of the dish or drink","where":"specific restaurant name and address or area","price":"price range in local currency","spicy":true/false}`,
+    attractions: `Return ONLY valid JSON (no markdown) matching exactly:
+{"name":"string","desc":"1–2 sentence description of what it is and why it's worth visiting","tip":"entry price, best time to visit, or practical tip"}`,
+    shopping: `Return ONLY valid JSON (no markdown) matching exactly:
+{"name":"string","desc":"1–2 sentence description of the place and what makes it special","what":"comma-separated list of things to buy there"}`,
+  };
+
+  async function handleAdd() {
+    if (!query.trim()) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 400,
+          system: `You are a travel expert for ${destObj.name}, ${destObj.country}. The travelers are Mauricio (Argentine, loves culture/trekking) and Carla (Brazilian, foodie, artisan shopping). Moderate spice tolerance. Budget-conscious. ${SCHEMAS[subTab]}`,
+          messages: [{ role: "user", content: `Give me details about this ${subLabel} in ${destObj.name}: "${query}"` }],
+        }),
+      });
+      const data = await res.json();
+      const raw = data.content?.map(c => c.text || "").join("") || "";
+      const clean = raw.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      onAdd(subTab, { ...parsed, _userAdded: true });
+      onClose();
+    } catch (e) {
+      setError("Couldn't autofill — check your internet connection, or try a more specific name.");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{ background: P.card, borderRadius: "16px 16px 0 0", padding: "24px 20px 32px", width: "100%", maxWidth: 480, boxShadow: "0 -4px 30px rgba(0,0,0,0.15)" }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: P.border, margin: "0 auto 20px" }} />
+        <div style={{ fontSize: 16, fontWeight: 700, color: P.text, marginBottom: 4 }}>
+          Add to {subTab === "food" ? "🍜 Food & Drinks" : subTab === "attractions" ? "📍 Attractions" : "🛍️ Shopping"}
+        </div>
+        <div style={{ fontSize: 13, color: P.textLight, marginBottom: 16 }}>
+          Type a name — AI will fill in the details for {destObj.flag} {destObj.name}
+        </div>
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleAdd()}
+          placeholder={placeholder}
+          style={{
+            width: "100%", padding: "13px 14px", borderRadius: 10,
+            border: `1.5px solid ${P.border}`, fontSize: 15, fontFamily: "inherit",
+            color: P.text, background: P.bg, outline: "none", boxSizing: "border-box",
+            marginBottom: 12,
+          }}
+        />
+        {error && (
+          <div style={{ fontSize: 12, color: P.red, marginBottom: 12, lineHeight: 1.5 }}>{error}</div>
+        )}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1px solid ${P.border}`, background: P.bg, fontSize: 14, fontWeight: 600, color: P.textMid, cursor: "pointer", fontFamily: "inherit" }}>
+            Cancel
+          </button>
+          <button
+            onClick={handleAdd}
+            disabled={loading || !query.trim()}
+            style={{
+              flex: 2, padding: "12px", borderRadius: 10, border: "none",
+              background: loading || !query.trim() ? P.border : P.accent,
+              fontSize: 14, fontWeight: 700, color: "#fff", cursor: loading || !query.trim() ? "default" : "pointer",
+              fontFamily: "inherit", transition: "background 0.15s",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}
+          >
+            {loading ? (
+              <>
+                <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                Autofilling…
+              </>
+            ) : "✦ Add with AI"}
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+// ── TAB: EXPLORE ─────────────────────────────────────────────────────────────
+function ExploreTab({ isOnline }) {
+  const [dest, setDest] = useState("hanoi");
+  const [sub, setSub] = useState("food");
+  const [showModal, setShowModal] = useState(false);
+  const [userItems, setUserItems] = useState({});
+
+  const destObj = DESTINATIONS.find(d => d.id === dest);
+  const staticData = EXPLORE[dest] || {};
+
+  function getUserList(d, s) { return userItems[d]?.[s] || []; }
+
+  function handleAdd(subTab, item) {
+    setUserItems(prev => ({
+      ...prev,
+      [dest]: { ...prev[dest], [subTab]: [...(prev[dest]?.[subTab] || []), item] },
+    }));
+  }
+
+  function handleDelete(subTab, idx) {
+    setUserItems(prev => ({
+      ...prev,
+      [dest]: { ...prev[dest], [subTab]: (prev[dest]?.[subTab] || []).filter((_, i) => i !== idx) },
+    }));
+  }
+
+  const subTabs = [
+    { id: "food", label: "🍜 Food & Drinks" },
+    { id: "attractions", label: "📍 Attractions" },
+    { id: "shopping", label: "🛍️ Shopping" },
+    { id: "ask", label: "💬 Ask Anything" },
+  ];
+
+  const showAddButton = sub !== "ask";
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100dvh - 50px)", position: "relative" }}>
+      <div style={{ padding: "12px 16px 4px", background: P.bg }}>
+        <select
+          value={dest}
+          onChange={e => { setDest(e.target.value); setSub("food"); }}
+          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${P.border}`, background: P.card, fontSize: 14, fontFamily: "inherit", color: P.text, fontWeight: 600, cursor: "pointer" }}
+        >
+          {DESTINATIONS.map(d => <option key={d.id} value={d.id}>{d.flag} {d.name} — {d.dates}</option>)}
+        </select>
+      </div>
+
+      <SubTabs active={sub} onChange={setSub} tabs={subTabs} />
+
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {sub === "food" && (
+          <div style={{ padding: "4px 16px 80px" }}>
+            {getUserList(dest, "food").map((item, i) => (
+              <Card key={`u${i}`} style={{ borderColor: P.accent + "55", position: "relative" }}>
+                <button onClick={() => handleDelete("food", i)} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", fontSize: 14, color: P.textLight, cursor: "pointer", lineHeight: 1, padding: 2 }}>✕</button>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingRight: 20 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{item.name}</div>
+                  {item.spicy && <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: "#fee2e2", color: P.red, fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>🌶️ Spicy</span>}
+                </div>
+                <div style={{ fontSize: 11, color: P.accent, fontWeight: 600, marginTop: 2, marginBottom: 4 }}>✦ Added by you</div>
+                <div style={{ fontSize: 13, color: P.textMid, lineHeight: 1.5 }}>{item.desc}</div>
+                <div style={{ fontSize: 12, color: P.green, marginTop: 8 }}>📍 {item.where}</div>
+                <div style={{ fontSize: 12, color: P.amber, marginTop: 4 }}>💰 {item.price}</div>
+              </Card>
+            ))}
+            {(staticData.food || []).map((item, i) => (
+              <Card key={`s${i}`}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{item.name}</div>
+                  {item.spicy && <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: "#fee2e2", color: P.red, fontWeight: 600 }}>🌶️ Spicy</span>}
+                </div>
+                <div style={{ fontSize: 13, color: P.textMid, lineHeight: 1.5, marginTop: 6 }}>{item.desc}</div>
+                <div style={{ fontSize: 12, color: P.green, marginTop: 8 }}>📍 {item.where}</div>
+                <div style={{ fontSize: 12, color: P.amber, marginTop: 4 }}>💰 {item.price}</div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {sub === "attractions" && (
+          <div style={{ padding: "4px 16px 80px" }}>
+            {getUserList(dest, "attractions").map((item, i) => (
+              <Card key={`u${i}`} style={{ borderColor: P.accent + "55", position: "relative" }}>
+                <button onClick={() => handleDelete("attractions", i)} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", fontSize: 14, color: P.textLight, cursor: "pointer", lineHeight: 1, padding: 2 }}>✕</button>
+                <div style={{ fontSize: 15, fontWeight: 700, color: P.text, paddingRight: 20 }}>{item.name}</div>
+                <div style={{ fontSize: 11, color: P.accent, fontWeight: 600, marginTop: 2, marginBottom: 4 }}>✦ Added by you</div>
+                <div style={{ fontSize: 13, color: P.textMid, lineHeight: 1.5 }}>{item.desc}</div>
+                <div style={{ fontSize: 12, color: P.blue, marginTop: 8 }}>💡 {item.tip}</div>
+              </Card>
+            ))}
+            {(staticData.attractions || []).map((item, i) => (
+              <Card key={`s${i}`}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{item.name}</div>
+                <div style={{ fontSize: 13, color: P.textMid, lineHeight: 1.5, marginTop: 6 }}>{item.desc}</div>
+                <div style={{ fontSize: 12, color: P.blue, marginTop: 8 }}>💡 {item.tip}</div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {sub === "shopping" && (
+          <div style={{ padding: "4px 16px 80px" }}>
+            {getUserList(dest, "shopping").map((item, i) => (
+              <Card key={`u${i}`} style={{ borderColor: P.accent + "55", position: "relative" }}>
+                <button onClick={() => handleDelete("shopping", i)} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", fontSize: 14, color: P.textLight, cursor: "pointer", lineHeight: 1, padding: 2 }}>✕</button>
+                <div style={{ fontSize: 15, fontWeight: 700, color: P.text, paddingRight: 20 }}>{item.name}</div>
+                <div style={{ fontSize: 11, color: P.accent, fontWeight: 600, marginTop: 2, marginBottom: 4 }}>✦ Added by you</div>
+                <div style={{ fontSize: 13, color: P.textMid, lineHeight: 1.5 }}>{item.desc}</div>
+                <div style={{ fontSize: 12, color: P.accent, marginTop: 8 }}>🛍️ {item.what}</div>
+              </Card>
+            ))}
+            {(staticData.shopping || []).map((item, i) => (
+              <Card key={`s${i}`}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{item.name}</div>
+                <div style={{ fontSize: 13, color: P.textMid, lineHeight: 1.5, marginTop: 6 }}>{item.desc}</div>
+                <div style={{ fontSize: 12, color: P.accent, marginTop: 8 }}>🛍️ {item.what}</div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {sub === "ask" && <AskChat destObj={destObj} isOnline={isOnline} />}
+      </div>
+
+      {showAddButton && (
+        <button
+          onClick={() => isOnline ? setShowModal(true) : null}
+          style={{
+            position: "absolute", bottom: 24, right: 20,
+            width: 52, height: 52, borderRadius: "50%",
+            background: isOnline ? P.accent : P.textLight, border: "none", color: "#fff",
+            fontSize: 26, fontWeight: 300, lineHeight: 1,
+            cursor: isOnline ? "pointer" : "default", fontFamily: "inherit",
+            boxShadow: "0 4px 16px rgba(191,90,26,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20,
+          }}
+          title={isOnline ? "Add item" : "No internet connection"}
+        >
+          +
+        </button>
+      )}
+
+      {showModal && isOnline && (
+        <AddItemModal destObj={destObj} subTab={sub} onAdd={handleAdd} onClose={() => setShowModal(false)} />
+      )}
+    </div>
+  );
+}
+
+function AskChat({ destObj, isOnline }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const chatRef = useRef(null);
+  const prevDestId = useRef(destObj?.id);
+
+  useEffect(() => {
+    if (destObj?.id !== prevDestId.current) { setMessages([]); prevDestId.current = destObj?.id; }
+  }, [destObj]);
+
+  useEffect(() => {
+    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+  }, [messages]);
+
+  const quickPrompts = ["Best hidden local restaurant?", "Cultural etiquette tips", "What's the history here?", "Safety tips", "Day trip ideas", "Nightlife suggestions"];
+
+  async function sendMessage(text) {
+    if (!text.trim() || loading) return;
+    const userMsg = { role: "user", content: text };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setInput("");
+    setLoading(true);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: `You are a travel companion for Mauricio (Argentine, loves trekking and culture) and Carla (Brazilian, foodie, artisan shopping, beaches). They are in ${destObj?.name}, ${destObj?.country}. Budget ~$100/day combined. Give specific names and addresses where possible. Flag spicy dishes (moderate tolerance). No tourist traps, no resorts, no chains. Keep responses concise — they're reading on a phone.`,
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+        }),
+      });
+      const data = await res.json();
+      const text2 = data.content?.map(c => c.text || "").join("") || "Sorry, no response.";
+      setMessages(prev => [...prev, { role: "assistant", content: text2 }]);
+    } catch {
+      setMessages(prev => [...prev, { role: "assistant", content: "Connection error — this tab needs internet." }]);
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {!isOnline && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 14 }}>🏔️</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: P.text, fontFamily: "'Playfair Display', Georgia, serif", marginBottom: 8 }}>You're offline</div>
+          <div style={{ fontSize: 13, color: P.textMid, lineHeight: 1.6, maxWidth: 280 }}>
+            The AI chat needs internet. All other tabs — itinerary, bookings, food lists, phrasebook, and currency — work fully offline.
+          </div>
+        </div>
+      )}
+      {isOnline && (
+        <>
+          <div ref={chatRef} style={{ flex: 1, overflowY: "auto", padding: 16, background: "#f7f1e0" }}>
+            {messages.length === 0 && (
+              <div>
+                <div style={{ textAlign: "center", padding: "16px 0 14px" }}>
+                  <div style={{ fontSize: 28 }}>{destObj?.flag}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: P.text, marginTop: 4, fontFamily: "'Playfair Display', Georgia, serif" }}>Ask about {destObj?.name}</div>
+                  <div style={{ fontSize: 12, color: P.textLight, marginTop: 4 }}>Requires internet connection</div>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
+                  {quickPrompts.map((p, i) => (
+                    <button key={i} onClick={() => sendMessage(p)} style={{ padding: "7px 12px", borderRadius: 18, border: `1px solid ${P.border}`, background: P.card, fontSize: 11, color: P.textMid, cursor: "pointer", fontFamily: "inherit" }}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
+                <div style={{
+                  maxWidth: "85%", padding: "10px 14px", borderRadius: 14,
+                  background: m.role === "user" ? P.accent : P.card,
+                  color: m.role === "user" ? "#fff" : P.text,
+                  fontSize: 13, lineHeight: 1.6,
+                  borderBottomRightRadius: m.role === "user" ? 4 : 14,
+                  borderBottomLeftRadius: m.role === "user" ? 14 : 4,
+                  whiteSpace: "pre-wrap",
+                }}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div style={{ display: "flex", marginBottom: 10 }}>
+                <div style={{ padding: "10px 18px", borderRadius: 14, background: P.card, fontSize: 13, color: P.textLight, borderBottomLeftRadius: 4 }}>Thinking…</div>
+              </div>
+            )}
+          </div>
+          <div style={{ padding: "10px 16px 16px", borderTop: `1px solid ${P.border}`, background: P.bg, display: "flex", gap: 8 }}>
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && sendMessage(input)}
+              placeholder={`Ask about ${destObj?.name}…`}
+              style={{ flex: 1, padding: "10px 14px", borderRadius: 22, border: `1px solid ${P.border}`, background: P.card, fontSize: 14, fontFamily: "inherit", color: P.text, outline: "none" }}
+            />
+            <button onClick={() => sendMessage(input)} disabled={loading || !input.trim()} style={{ padding: "10px 16px", borderRadius: 22, border: "none", background: P.accent, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: loading || !input.trim() ? 0.5 : 1, fontFamily: "inherit" }}>→</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── TAB: CURRENCY ────────────────────────────────────────────────────────────
+function CurrencyTab() {
+  const [rates, setRates] = useState({ VND: 26330, KHR: 4010, KRW: 1476 });
+  const [amount, setAmount] = useState("10");
+  const [base, setBase] = useState("USD");
+  const [editingRates, setEditingRates] = useState(false);
+
+  const currencies = [
+    { code: "USD", symbol: "$",  name: "US Dollar",         flag: "🇺🇸" },
+    { code: "VND", symbol: "₫",  name: "Vietnamese Đồng",   flag: "🇻🇳" },
+    { code: "KHR", symbol: "៛",  name: "Cambodian Riel",    flag: "🇰🇭" },
+    { code: "KRW", symbol: "₩",  name: "South Korean Won",  flag: "🇰🇷" },
+  ];
+
+  function convert(from, to, val) {
+    if (from === to) return val;
+    const usd = from === "USD" ? val : val / rates[from];
+    return to === "USD" ? usd : usd * rates[to];
+  }
+
+  const num = parseFloat(amount) || 0;
+  const quickAmts = base === "USD" ? [1, 5, 10, 20, 50, 100]
+    : base === "VND" ? [10000, 50000, 100000, 200000, 500000]
+    : base === "KHR" ? [1000, 5000, 10000, 20000, 50000]
+    : [1000, 5000, 10000, 50000, 100000];
+
+  function format(code, val) {
+    return (code === "VND" || code === "KHR" || code === "KRW")
+      ? Math.round(val).toLocaleString()
+      : val.toFixed(2);
+  }
+
+  return (
+    <div style={{ padding: "16px 16px 80px" }}>
+      <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 22, color: P.text, margin: "0 0 4px" }}>Currency Converter</h2>
+      <p style={{ color: P.textLight, fontSize: 13, margin: "0 0 16px" }}>
+        Rates as of Apr 17, 2026 ·{" "}
+        <span onClick={() => setEditingRates(!editingRates)} style={{ color: P.accent, cursor: "pointer", textDecoration: "underline" }}>
+          {editingRates ? "done" : "edit rates"}
+        </span>
+      </p>
+
+      {editingRates && (
+        <Card style={{ background: P.accentLight, marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: P.accent, marginBottom: 10 }}>1 USD =</div>
+          {Object.entries(rates).map(([code, rate]) => (
+            <div key={code} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontSize: 13, color: P.text }}>1 USD =</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input type="number" value={rate} onChange={e => setRates(prev => ({ ...prev, [code]: parseFloat(e.target.value) || 0 }))}
+                  style={{ width: 90, padding: "6px 10px", borderRadius: 6, border: `1px solid ${P.border}`, fontSize: 13, fontFamily: "inherit", textAlign: "right" }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: P.textMid, width: 32 }}>{code}</span>
+              </div>
+            </div>
+          ))}
+        </Card>
+      )}
+
+      <Card>
+        <div style={{ fontSize: 12, color: P.textLight, marginBottom: 8 }}>Converting from</div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+          {currencies.map(c => (
+            <button key={c.code} onClick={() => { setBase(c.code); setAmount(""); }} style={{
+              flex: 1, padding: "8px 4px", borderRadius: 8,
+              border: base === c.code ? `2px solid ${P.accent}` : `1px solid ${P.border}`,
+              background: base === c.code ? P.accentLight : P.card,
+              cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 600,
+              color: base === c.code ? P.accent : P.textMid,
+            }}>{c.flag} {c.code}</button>
+          ))}
+        </div>
+        <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Enter amount"
+          style={{ width: "100%", padding: "14px", borderRadius: 10, border: `1px solid ${P.border}`, fontSize: 22, fontFamily: "inherit", fontWeight: 700, color: P.text, textAlign: "center", boxSizing: "border-box" }} />
+        <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+          {quickAmts.map(q => (
+            <button key={q} onClick={() => setAmount(String(q))} style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${P.border}`, background: P.bg, fontSize: 11, cursor: "pointer", fontFamily: "inherit", color: P.textMid }}>
+              {q.toLocaleString()}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {currencies.filter(c => c.code !== base).map(c => (
+        <Card key={c.code}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 13, color: P.textLight }}>{c.flag} {c.name}</div>
+              <div style={{ fontSize: 11, color: P.textLight, marginTop: 2 }}>1 {base} = {format(c.code, convert(base, c.code, 1))} {c.code}</div>
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: P.text }}>{c.symbol}{format(c.code, convert(base, c.code, num))}</div>
+          </div>
+        </Card>
+      ))}
+
+      <Card style={{ background: P.amberBg, borderColor: "#e8d5a0" }}>
+        <div style={{ fontSize: 12, color: P.amber, fontWeight: 600, marginBottom: 6 }}>💡 Tips</div>
+        <div style={{ fontSize: 12, color: P.textMid, lineHeight: 1.7 }}>
+          <strong>Vietnam:</strong> Carry cash. ATMs ~$2–3 fee. Agribank & BIDV have lowest fees.<br /><br />
+          <strong>Cambodia:</strong> USD accepted everywhere over $1. Change under $1 comes in Riel.<br /><br />
+          <strong>Korea:</strong> Cards accepted almost everywhere. T-money card for transit. 7-Eleven ATMs work best.
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ── TAB: PHRASEBOOK ───────────────────────────────────────────────────────────
+function PhrasebookTab() {
+  const langKeys = Object.keys(PHRASES);
+  const [lang, setLang] = useState("vietnam");
+  const [catKey, setCatKey] = useState("essentials");
+
+  const langData = PHRASES[lang];
+  const cats = langData.categories;
+  const activeCatKey = cats[catKey] ? catKey : "essentials";
+  const cat = cats[activeCatKey];
+
+  function pickLang(k) { setLang(k); setCatKey("essentials"); }
+
+  const langColors = { vietnam: "#bf5a1a", cambodia: "#1a7a7a", korea: "#2563a0" };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100dvh - 50px)" }}>
+      <div style={{ padding: "12px 16px 8px", background: P.bg, borderBottom: `1px solid ${P.border}` }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          {langKeys.map(k => {
+            const d = PHRASES[k];
+            const col = langColors[k];
+            const active = lang === k;
+            return (
+              <button key={k} onClick={() => pickLang(k)} style={{
+                flex: 1, padding: "9px 6px", borderRadius: 10, fontFamily: "inherit",
+                border: active ? `2px solid ${col}` : `1px solid ${P.border}`,
+                background: active ? col + "15" : P.card,
+                color: active ? col : P.textMid,
+                fontSize: 12, fontWeight: 700, cursor: "pointer",
+              }}>
+                {d.flag}<br />
+                <span style={{ fontSize: 10, fontWeight: 500 }}>{k === "vietnam" ? "Vietnamese" : k === "cambodia" ? "Khmer" : "Korean"}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ padding: "8px 16px 6px", background: P.bg, borderBottom: `1px solid ${P.border}`, display: "flex", gap: 6, overflowX: "auto" }}>
+        {Object.entries(cats).map(([k, c]) => (
+          <button key={k} onClick={() => setCatKey(k)} style={{
+            flex: "none", padding: "7px 13px", borderRadius: 18, fontSize: 12, fontWeight: 600,
+            border: activeCatKey === k ? `1.5px solid ${langColors[lang]}` : `1px solid ${P.border}`,
+            background: activeCatKey === k ? langColors[lang] + "18" : P.card,
+            color: activeCatKey === k ? langColors[lang] : P.textMid,
+            cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+          }}>{c.icon} {c.label}</button>
+        ))}
+      </div>
+
+      <div style={{ padding: "8px 16px 0", background: P.bg }}>
+        <div style={{ fontSize: 11, color: P.textLight, lineHeight: 1.5, padding: "6px 10px", background: P.card, borderRadius: 6, border: `1px solid ${P.border}` }}>
+          💡 {langData.currency}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px 80px" }}>
+        {cat.phrases && cat.phrases.map((p, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "11px 0", borderBottom: i < cat.phrases.length - 1 ? `1px solid ${P.border}44` : "none" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: P.textLight, marginBottom: 3 }}>{p.en}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: P.text, lineHeight: 1.3 }}>{p.local}</div>
+            </div>
+            <div style={{ fontSize: 11, color: langColors[lang], fontStyle: "italic", textAlign: "right", maxWidth: "42%", paddingLeft: 10, paddingTop: 16, lineHeight: 1.4 }}>
+              {p.rom}
+            </div>
+          </div>
+        ))}
+
+        {cat.isDishes && cat.items && (
+          <div>
+            <div style={{ fontSize: 11, color: P.textLight, marginBottom: 12, lineHeight: 1.5, padding: "8px 10px", background: "#fff8ee", borderRadius: 6, border: `1px solid ${P.amberBg}` }}>
+              🌶️ = spicy by default — use the "not spicy" phrase from Food &amp; Drink when ordering
+            </div>
+            {cat.items.map((d, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "11px 0", borderBottom: i < cat.items.length - 1 ? `1px solid ${P.border}44` : "none" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{d.name}</div>
+                  <div style={{ fontSize: 12, color: P.textMid, marginTop: 3, lineHeight: 1.4 }}>{d.note}</div>
+                </div>
+                {d.spicy && <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: "#fee2e2", color: P.red, fontWeight: 600, flexShrink: 0, marginLeft: 10, marginTop: 2 }}>🌶️</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {cat.isNumbers && cat.items && (
+          <div>
+            {cat.items.map((row, i) => (
+              <div key={i} style={{ padding: "11px 0", borderBottom: i < cat.items.length - 1 ? `1px solid ${P.border}44` : "none" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, color: P.textLight, marginBottom: 3 }}>{row.num}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{row.local}</div>
+                  </div>
+                  <div style={{ textAlign: "right", paddingLeft: 10 }}>
+                    <div style={{ fontSize: 11, color: langColors[lang], fontStyle: "italic" }}>{row.rom}</div>
+                    {row.ctx && <div style={{ fontSize: 11, color: P.amber, marginTop: 3, fontWeight: 600 }}>{row.ctx}</div>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── EDIT BOT ─────────────────────────────────────────────────────────────────
+function EditBot({ itinerary, confirmed, toBook, onApply, onClose }) {
+  const [messages, setMessages] = useState([{
+    role: "assistant",
+    content: "Hi! I can update your itinerary or bookings. Just tell me what changed — for example:\n\n- We moved Hue check-out to May 6\n- Add a hotel in Phnom Penh: Frangipani Royal Palace, conf 123456\n- Remove the SafetyWing reminder, already extended\n- Change the Seoul Airbnb checkout to 12:00",
+    proposal: null,
+  }]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const chatRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+  }, [messages]);
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
+
+  async function send(text) {
+    if (!text.trim() || loading) return;
+    const userMsg = { role: "user", content: text, proposal: null };
+    const history = [...messages, userMsg];
+    setMessages(history);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const systemPrompt = `You are a travel itinerary assistant helping Mauricio and Carla update their Southeast Asia trip plans.
+
+Here is their CURRENT data (JSON):
+${JSON.stringify({ itinerary, confirmed, toBook }, null, 2)}
+
+When the user describes a change, respond with ONLY a JSON object (no markdown, no backticks):
+{
+  "reply": "Clear 1-2 sentence explanation of exactly what you're proposing to change",
+  "proposal": {
+    "type": "itinerary" | "confirmed" | "toBook",
+    "action": "update" | "add" | "remove",
+    "index": <number, 0-based, required for update/remove>,
+    "data": <full new object for update/add, omit for remove>
+  }
+}
+
+If the user is just asking a question or confirming/declining a proposal, set "proposal" to null.
+For "update" actions, return the COMPLETE updated object.
+For "add" actions to confirmed bookings, include all required fields: icon, title, date, warn, rows (array of [label, value] pairs).
+For "add" actions to toBook, include: icon, title, dates, tip.
+For "add" actions to itinerary, include: loc, sub, type (travel/explore/adventure/beach), flag, dateRange, dn, details (array of strings).`;
+
+      const apiMessages = history
+        .filter(m => m.role === "user" || m.role === "assistant")
+        .map(m => ({ role: m.role, content: m.content }));
+
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1200,
+          system: systemPrompt,
+          messages: apiMessages,
+        }),
+      });
+      const data = await res.json();
+      const raw = data.content?.map(c => c.text || "").join("") || "";
+      const clean = raw.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      setMessages(prev => [...prev, { role: "assistant", content: parsed.reply, proposal: parsed.proposal || null }]);
+    } catch (e) {
+      setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I couldn't process that. Check your internet connection and try again.", proposal: null }]);
+    }
+    setLoading(false);
+  }
+
+  function applyProposal(proposal) {
+    onApply(proposal);
+    setMessages(prev => [...prev, { role: "assistant", content: "✅ Done! The change has been applied. Anything else to update?", proposal: null }]);
+  }
+
+  function rejectProposal() {
+    setMessages(prev => [...prev, { role: "assistant", content: "No problem, change cancelled. What else can I help with?", proposal: null }]);
+  }
+
+  function ProposalCard({ proposal }) {
+    const typeLabels = { itinerary: "Itinerary", confirmed: "Confirmed Booking", toBook: "To Book" };
+    const actionColors = { update: P.blue, add: P.green, remove: P.red };
+    const actionLabels = { update: "Update", add: "Add", remove: "Remove" };
+    const col = actionColors[proposal.action] || P.accent;
+
+    let itemName = "";
+    if (proposal.action === "remove" || proposal.action === "update") {
+      const arr = proposal.type === "itinerary" ? itinerary : proposal.type === "confirmed" ? confirmed : toBook;
+      const item = arr[proposal.index];
+      itemName = item?.loc || item?.title || `Item #${proposal.index + 1}`;
+    } else if (proposal.data) {
+      itemName = proposal.data.loc || proposal.data.title || "New item";
+    }
+
+    return (
+      <div style={{ margin: "8px 0 4px", padding: "12px 14px", borderRadius: 12, background: P.card, border: `1.5px solid ${col}33` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, background: col + "18", color: col, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            {actionLabels[proposal.action]}
+          </span>
+          <span style={{ fontSize: 11, color: P.textLight }}>{typeLabels[proposal.type]}</span>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: P.text, marginBottom: 12 }}>{itemName}</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={rejectProposal} style={{ flex: 1, padding: "9px", borderRadius: 8, border: `1px solid ${P.border}`, background: P.bg, fontSize: 13, fontWeight: 600, color: P.textMid, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+          <button onClick={() => applyProposal(proposal)} style={{ flex: 2, padding: "9px", borderRadius: 8, border: "none", background: col, fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>Confirm change</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{ background: P.bg, borderRadius: "18px 18px 0 0", maxHeight: "85dvh", display: "flex", flexDirection: "column", maxWidth: 480, width: "100%", margin: "0 auto", boxShadow: "0 -4px 30px rgba(0,0,0,0.2)" }}>
+        <div style={{ padding: "14px 18px 12px", borderBottom: `1px solid ${P.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>✏️ Edit Assistant</div>
+            <div style={{ fontSize: 11, color: P.textLight, marginTop: 2 }}>Describe any change — I'll propose it first</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, color: P.textLight, cursor: "pointer", padding: 4, lineHeight: 1 }}>×</button>
+        </div>
+
+        <div ref={chatRef} style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+          {messages.map((m, i) => (
+            <div key={i}>
+              <div style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 6 }}>
+                <div style={{
+                  maxWidth: "88%", padding: "10px 14px", borderRadius: 14,
+                  background: m.role === "user" ? P.text : P.card,
+                  color: m.role === "user" ? "#fff" : P.text,
+                  fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap",
+                  borderBottomRightRadius: m.role === "user" ? 4 : 14,
+                  borderBottomLeftRadius: m.role === "user" ? 14 : 4,
+                  border: m.role === "assistant" ? `1px solid ${P.border}` : "none",
+                }}>
+                  {m.content}
+                </div>
+              </div>
+              {m.proposal && <ProposalCard proposal={m.proposal} />}
+            </div>
+          ))}
+          {loading && (
+            <div style={{ display: "flex", marginBottom: 6 }}>
+              <div style={{ padding: "10px 16px", borderRadius: 14, background: P.card, border: `1px solid ${P.border}`, fontSize: 13, color: P.textLight, borderBottomLeftRadius: 4 }}>Thinking…</div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: "10px 14px 20px", borderTop: `1px solid ${P.border}`, display: "flex", gap: 8, flexShrink: 0, background: P.bg }}>
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && !e.shiftKey && send(input)}
+            placeholder="Describe a change…"
+            style={{ flex: 1, padding: "10px 14px", borderRadius: 22, border: `1px solid ${P.border}`, background: P.card, fontSize: 14, fontFamily: "inherit", color: P.text, outline: "none" }}
+          />
+          <button onClick={() => send(input)} disabled={loading || !input.trim()} style={{
+            padding: "10px 16px", borderRadius: 22, border: "none",
+            background: loading || !input.trim() ? P.border : P.text,
+            color: "#fff", fontSize: 14, fontWeight: 600, cursor: loading || !input.trim() ? "default" : "pointer",
+            fontFamily: "inherit",
+          }}>→</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN APP ─────────────────────────────────────────────────────────────────
+const MAIN_TABS = [
+  { id: "itinerary", label: "Itinerary", icon: "📅" },
+  { id: "bookings",  label: "Bookings",  icon: "📋" },
+  { id: "explore",   label: "Explore",   icon: "🧭" },
+  { id: "currency",  label: "Currency",  icon: "💱" },
+  { id: "phrases",   label: "Phrases",   icon: "💬" },
+];
+
+function App() {
+  const [tab, setTab] = useState("itinerary");
+  const [editOpen, setEditOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+
+  useEffect(() => {
+    const goOnline  = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online",  goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online",  goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
+
+  const [liveItinerary, setLiveItinerary] = useState(() => JSON.parse(JSON.stringify(ITINERARY_GROUPS)));
+  const [liveConfirmed, setLiveConfirmed] = useState(() => JSON.parse(JSON.stringify(CONFIRMED)));
+  const [liveToBook, setLiveToBook] = useState(() => JSON.parse(JSON.stringify(TO_BOOK)));
+
+  function applyChange(proposal) {
+    const { type, action, index, data } = proposal;
+    if (type === "itinerary") {
+      setLiveItinerary(prev => { const n = [...prev]; if (action === "update") n[index] = data; else if (action === "add") n.push(data); else if (action === "remove") n.splice(index, 1); return n; });
+    } else if (type === "confirmed") {
+      setLiveConfirmed(prev => { const n = [...prev]; if (action === "update") n[index] = data; else if (action === "add") n.push(data); else if (action === "remove") n.splice(index, 1); return n; });
+    } else if (type === "toBook") {
+      setLiveToBook(prev => { const n = [...prev]; if (action === "update") n[index] = data; else if (action === "add") n.push(data); else if (action === "remove") n.splice(index, 1); return n; });
+    }
+  }
+
+  return (
+    <div style={{ fontFamily: "'Source Sans 3', 'Source Sans Pro', -apple-system, sans-serif", background: P.bg, minHeight: "100dvh", color: P.text, maxWidth: 480, margin: "0 auto" }}>
+      <div style={{ background: `linear-gradient(135deg, ${P.accent} 0%, #a04008 100%)`, padding: "20px 16px 14px", color: "#fff" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", opacity: 0.8 }}>Mauricio & Carla</div>
+        <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Playfair Display', Georgia, serif", marginTop: 2 }}>Southeast Asia 2026</div>
+        <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>🇻🇳 Vietnam · 🇰🇭 Cambodia · 🇰🇷 South Korea — 33 days</div>
+      </div>
+
+      {!isOnline && (
+        <div style={{ background: "#2c2417", color: "#fff", padding: "8px 16px", display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+          <span style={{ fontSize: 14 }}>🏔️</span>
+          <span style={{ fontWeight: 600 }}>Offline mode</span>
+          <span style={{ color: "rgba(255,255,255,0.65)" }}>— Itinerary, bookings, phrases & currency work fully offline.</span>
+        </div>
+      )}
+
+      <TopTabs active={tab} onChange={setTab} tabs={MAIN_TABS} />
+
+      {tab === "itinerary" && <ItineraryTab groups={liveItinerary} onEditOpen={() => setEditOpen(true)} />}
+      {tab === "bookings"  && <BookingsTab confirmed={liveConfirmed} toBook={liveToBook} onEditOpen={() => setEditOpen(true)} />}
+      {tab === "explore"   && <ExploreTab isOnline={isOnline} />}
+      {tab === "currency"  && <CurrencyTab />}
+      {tab === "phrases"   && <PhrasebookTab />}
+
+      {editOpen && isOnline && (
+        <EditBot itinerary={liveItinerary} confirmed={liveConfirmed} toBook={liveToBook} onApply={applyChange} onClose={() => setEditOpen(false)} />
+      )}
+      {editOpen && !isOnline && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+          onClick={() => setEditOpen(false)}>
+          <div style={{ background: P.bg, borderRadius: "18px 18px 0 0", padding: "32px 24px 40px", maxWidth: 480, width: "100%", textAlign: "center" }}>
+            <div style={{ fontSize: 40, marginBottom: 14 }}>🏔️</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: P.text, fontFamily: "'Playfair Display', Georgia, serif", marginBottom: 8 }}>You're offline</div>
+            <div style={{ fontSize: 13, color: P.textMid, lineHeight: 1.6 }}>The Edit Assistant needs internet to work.<br/>All your itinerary and booking details are still accessible in the tabs above.</div>
+            <button onClick={() => setEditOpen(false)} style={{ marginTop: 20, padding: "10px 28px", borderRadius: 22, border: "none", background: P.text, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Got it</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── MOUNT ────────────────────────────────────────────────────────────────────
+const _root = ReactDOM.createRoot(document.getElementById('root'));
+_root.render(<App />);
+
+// Hide splash once React has painted
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    const splash = document.getElementById('splash');
+    if (splash) { splash.classList.add('hidden'); setTimeout(() => splash.remove(), 500); }
+  });
+});
+</script>
+
+<!-- ═══════════════════════════════════════════════════
+     PWA SETUP  (manifest + touch icon + service worker)
+══════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  // ── 1. Generate apple-touch-icon as a canvas PNG ──────────────────────────
+  try {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 180;
+    const ctx = cv.getContext('2d');
+    // Background gradient
+    const g = ctx.createLinearGradient(0, 0, 180, 180);
+    g.addColorStop(0, '#bf5a1a');
+    g.addColorStop(1, '#a04008');
+    ctx.fillStyle = g;
+    // Rounded rect (r=38)
+    const r = 38;
+    ctx.beginPath();
+    ctx.moveTo(r, 0);
+    ctx.lineTo(180-r, 0);
+    ctx.quadraticCurveTo(180, 0, 180, r);
+    ctx.lineTo(180, 180-r);
+    ctx.quadraticCurveTo(180, 180, 180-r, 180);
+    ctx.lineTo(r, 180);
+    ctx.quadraticCurveTo(0, 180, 0, 180-r);
+    ctx.lineTo(0, r);
+    ctx.quadraticCurveTo(0, 0, r, 0);
+    ctx.closePath();
+    ctx.fill();
+    // Emoji
+    ctx.font = '90px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('✈', 90, 96);
+    document.getElementById('ati').href = cv.toDataURL('image/png');
+  } catch(e) {}
+
+  // ── 2. Inline PWA manifest ────────────────────────────────────────────────
+  try {
+    const manifest = {
+      name: "SE Asia 2026 — Mauricio & Carla",
+      short_name: "SE Asia 2026",
+      description: "Vietnam · Cambodia · South Korea travel companion",
+      start_url: ".",
+      display: "standalone",
+      background_color: "#fdf6e3",
+      theme_color: "#bf5a1a",
+      orientation: "portrait-primary",
+      icons: [{ src: document.getElementById('ati').href, sizes: "180x180", type: "image/png" }]
+    };
+    const mBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+    const mLink = document.createElement('link');
+    mLink.rel = 'manifest';
+    mLink.href = URL.createObjectURL(mBlob);
+    document.head.appendChild(mLink);
+  } catch(e) {}
+
+  // ── 3. Service Worker for offline caching ─────────────────────────────────
+  // NOTE: Blob-based SW has limited scope, but still caches CDN deps (React,
+  // Babel, fonts). The HTML file itself must be saved by the browser normally.
+  if ('serviceWorker' in navigator) {
+    const SW = `
+const CACHE = 'sea2026-v2';
+const PRECACHE = [
+  'https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js',
+  'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap'
+];
+
+self.addEventListener('install', e => {
+  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE).then(c => {
+      return Promise.allSettled(PRECACHE.map(url =>
+        c.add(url).catch(() => {})
+      ));
+    })
+  );
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => clients.claim())
+  );
+});
+
+self.addEventListener('fetch', e => {
+  // Never intercept Anthropic API calls
+  if (e.request.url.includes('api.anthropic.com')) return;
+
+  e.respondWith(
+    caches.open(CACHE).then(cache =>
+      cache.match(e.request).then(cached => {
+        const network = fetch(e.request)
+          .then(res => {
+            if (res.ok && res.type !== 'opaque') {
+              cache.put(e.request, res.clone());
+            }
+            return res;
+          })
+          .catch(() => cached || new Response('Offline', { status: 503 }));
+        return cached || network;
+      })
+    )
+  );
+});
+`;
+    try {
+      const swBlob = new Blob([SW], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(swBlob);
+      navigator.serviceWorker.register(swUrl).catch(() => {});
+    } catch(e) {}
+  }
+})();
+</script>
+</body>
+</html>
